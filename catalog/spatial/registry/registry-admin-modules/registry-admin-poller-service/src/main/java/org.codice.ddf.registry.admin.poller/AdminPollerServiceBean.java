@@ -12,7 +12,7 @@
  * <http://www.gnu.org/licenses/lgpl.html>.
  */
 
-package org.codice.ddf.catalog.admin.poller;
+package org.codice.ddf.registry.admin.poller;
 
 import java.io.IOException;
 import java.io.Serializable;

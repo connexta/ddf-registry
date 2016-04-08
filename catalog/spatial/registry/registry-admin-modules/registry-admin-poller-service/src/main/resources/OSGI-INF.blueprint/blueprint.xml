@@ -37,7 +37,7 @@
     </reference-list>
 
     <bean id="adminPoller"
-          class="org.codice.ddf.catalog.admin.poller.AdminPollerServiceBean"
+          class="org.codice.ddf.registry.admin.poller.AdminPollerServiceBean"
           init-method="init"
           destroy-method="destroy">
         <argument ref="configurationAdmin"/>

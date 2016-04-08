@@ -16,13 +16,13 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <artifactId>catalog-admin</artifactId>
-        <groupId>ddf.catalog.admin</groupId>
+        <artifactId>registry-admin-modules</artifactId>
+        <groupId>org.codice.ddf.registry</groupId>
         <version>2.9.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-    <name>DDF :: Catalog :: Admin :: Poller Service</name>
-    <artifactId>catalog-admin-poller-service</artifactId>
+    <name>DDF :: Registry :: Admin :: Poller Service</name>
+    <artifactId>registry-admin-poller-service</artifactId>
     <packaging>bundle</packaging>
     <dependencies>
         <dependency>

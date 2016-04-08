@@ -25,5 +25,8 @@
     <artifactId>registry-admin-modules</artifactId>
     <packaging>pom</packaging>
     <name>DDF :: Registry :: Admin :: Modules</name>
+    <modules>
+        <module>registry-admin-poller-service</module>
+    </modules>
 
 </project>

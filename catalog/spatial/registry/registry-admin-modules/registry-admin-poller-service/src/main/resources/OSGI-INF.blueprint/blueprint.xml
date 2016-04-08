@@ -27,6 +27,8 @@
 
     <reference id="filterBuilder" interface="ddf.catalog.filter.FilterBuilder"/>
 
+    <reference id="federationAdminService" interface="org.codice.ddf.registry.federationadmin.service.impl.FederationAdminServiceImpl"/>
+
     <bean id="catalogStoreMap" class="ddf.catalog.util.impl.DescribableServiceMap">
     </bean>
 
@@ -44,5 +46,6 @@
         <argument ref="catalogFramework"/>
         <argument ref="filterBuilder"/>
         <argument ref="catalogStoreMap"/>
+        <argument ref="federationAdminService"/>
     </bean>
 </blueprint>

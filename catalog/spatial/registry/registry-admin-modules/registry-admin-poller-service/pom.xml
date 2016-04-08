@@ -46,14 +46,22 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>ddf.platform.util</groupId>
+            <artifactId>platform-util</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.codice.ddf.registry</groupId>
+            <artifactId>registry-federation-admin-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.codice.ddf.registry</groupId>
+            <artifactId>registry-federation-admin-impl</artifactId>
+        </dependency>
+        <dependency>
             <groupId>ddf.catalog.opensearch</groupId>
             <artifactId>catalog-opensearch-source</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>ddf.platform.util</groupId>
-            <artifactId>platform-util</artifactId>
         </dependency>
     </dependencies>
     <build>

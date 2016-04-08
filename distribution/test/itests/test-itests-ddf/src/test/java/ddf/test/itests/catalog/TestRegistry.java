@@ -43,6 +43,8 @@ import ddf.test.itests.common.Library;
 @ExamReactorStrategy(PerClass.class)
 public class TestRegistry extends AbstractIntegrationTest {
 
+    private static final String CATALOG_REGISTRY = "registry-app";
+
     private static final String REGISTRY_CATALOG_STORE_ID = "cswRegistryCatalogStore";
 
     @BeforeExam
@@ -51,6 +53,7 @@ public class TestRegistry extends AbstractIntegrationTest {
             basePort = getBasePort();
             getAdminConfig().setLogLevels();
             getServiceManager().waitForRequiredApps(getDefaultRequiredApps());
+            getServiceManager().startFeature(true, CATALOG_REGISTRY);
             getServiceManager().waitForAllBundles();
             getCatalogBundle().waitForCatalogProvider();
             getServiceManager().waitForHttpEndpoint(SERVICE_ROOT + "/catalog/query?_wadl");

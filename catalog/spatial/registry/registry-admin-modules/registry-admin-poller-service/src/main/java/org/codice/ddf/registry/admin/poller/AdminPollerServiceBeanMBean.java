@@ -25,15 +25,28 @@ import ddf.catalog.source.UnsupportedQueryException;
 public interface AdminPollerServiceBeanMBean {
     boolean sourceStatus(String servicePID);
 
+    /**
+     * Returns a list of source metatype mappings and registry metacard mappings for the given service.
+     *
+     * If the registry id of the source metatype matches a registry metacard mapping, they will be paired
+     * together in a Map
+     *
+     * @return List of source/service metatype mappings.
+     */
     List<Map<String, Object>> allSourceInfo();
 
     /**
-     * @param source - The id of the source that will be published to or unpublished
-     *               from the following destinations
+     * Returns a list of registry metatype mappings for the given service.
      *
+     * @return List of registry metatype mappings.
+     */
+    List<Map<String, Object>> allRegistryInfo();
+
+    /**
+     * @param source       - The id of the source that will be published to or unpublished
+     *                     from the following destinations
      * @param destinations - List of ids of catalog stores that the source will be
      *                     published to or unpublished from
-     *
      * @return the list of currently published locations after attempting to perform
      * the publish/unpublishes
      */

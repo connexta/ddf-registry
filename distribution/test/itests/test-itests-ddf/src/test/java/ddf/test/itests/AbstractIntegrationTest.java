@@ -740,7 +740,7 @@ public abstract class AbstractIntegrationTest {
 
     public class CswRegistryStoreProperties extends HashMap<String, Object> {
 
-        public static final String SYMBOLIC_NAME = "catalog-registry-api-impl";
+        public static final String SYMBOLIC_NAME = "registry-api-impl";
 
         public static final String FACTORY_PID = "Csw_Registry_Store";
 

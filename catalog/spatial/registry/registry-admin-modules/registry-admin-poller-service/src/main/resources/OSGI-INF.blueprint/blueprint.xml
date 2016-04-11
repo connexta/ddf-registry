@@ -27,6 +27,8 @@
 
     <reference id="filterBuilder" interface="ddf.catalog.filter.FilterBuilder"/>
 
+    <reference id="federationAdminService" interface="org.codice.ddf.registry.federationadmin.service.impl.FederationAdminServiceImpl"/>
+
     <bean id="catalogStoreMap" class="ddf.catalog.util.impl.DescribableServiceMap">
     </bean>
 
@@ -37,12 +39,13 @@
     </reference-list>
 
     <bean id="adminPoller"
-          class="org.codice.ddf.catalog.admin.poller.AdminPollerServiceBean"
+          class="org.codice.ddf.registry.admin.poller.AdminPollerServiceBean"
           init-method="init"
           destroy-method="destroy">
         <argument ref="configurationAdmin"/>
         <argument ref="catalogFramework"/>
         <argument ref="filterBuilder"/>
         <argument ref="catalogStoreMap"/>
+        <argument ref="federationAdminService"/>
     </bean>
 </blueprint>

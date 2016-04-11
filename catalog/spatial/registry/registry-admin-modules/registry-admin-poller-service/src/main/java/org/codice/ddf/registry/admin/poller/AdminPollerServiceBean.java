@@ -12,14 +12,13 @@
  * <http://www.gnu.org/licenses/lgpl.html>.
  */
 
-package org.codice.ddf.catalog.admin.poller;
+package org.codice.ddf.registry.admin.poller;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +31,10 @@ import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
 import org.apache.shiro.util.CollectionUtils;
+import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
+import org.codice.ddf.registry.federationadmin.converter.RegistryPackageWebConverter;
+import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
+import org.codice.ddf.registry.federationadmin.service.FederationAdminService;
 import org.codice.ddf.ui.admin.api.ConfigurationAdminExt;
 import org.opengis.filter.Filter;
 import org.osgi.framework.Bundle;
@@ -71,6 +74,7 @@ import ddf.catalog.source.IngestException;
 import ddf.catalog.source.Source;
 import ddf.catalog.source.SourceUnavailableException;
 import ddf.catalog.source.UnsupportedQueryException;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryPackageType;
 
 public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
     static final String META_TYPE_NAME = "org.osgi.service.metatype.MetaTypeService";
@@ -99,15 +103,21 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
 
     private static final String SERVICE_NAME = ":service=admin-source-poller-service";
 
-    private static final String REGISTRY_ID = "registry-id";
+    private static final String SOURCE_MAP_KEY = "source";
 
-    private static final String PUBLISHED_LOCATIONS = "published-locations";
+    private static final String REGISTRY_MAP_KEY = "registry";
+
+    private static final String SOURCE_FILTER =
+            "(|(service.factoryPid=*source*)(service.factoryPid=*Source*)(service.factoryPid=*service*)(service.factoryPid=*Service*))";
+
+    private static final String REGISTRY_FILTER =
+            "(|(service.factoryPid=*Registry*Store*)(service.factoryPid=*registry*store*))";
 
     private final ObjectName objectName;
 
     private final MBeanServer mBeanServer;
 
-    private final AdminSourceHelper helper;
+    private final AdminHelper helper;
 
     private CatalogFramework catalogFramework;
 
@@ -115,9 +125,12 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
 
     private Map<String, CatalogStore> catalogStoreMap;
 
+    private FederationAdminService federationAdminService;
+
     public AdminPollerServiceBean(ConfigurationAdmin configurationAdmin,
             CatalogFramework catalogFramework, FilterBuilder filterBuilder,
-            Map<String, CatalogStore> catalogStoreMap) {
+            Map<String, CatalogStore> catalogStoreMap,
+            FederationAdminService federationAdminService) {
         helper = getHelper();
         helper.configurationAdmin = configurationAdmin;
 
@@ -134,6 +147,7 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
         this.catalogFramework = catalogFramework;
         this.filterBuilder = filterBuilder;
         this.catalogStoreMap = catalogStoreMap;
+        this.federationAdminService = federationAdminService;
     }
 
     public void init() {
@@ -201,8 +215,77 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
 
     @Override
     public List<Map<String, Object>> allSourceInfo() {
+        List<Map<String, Object>> allSourceInfo = new ArrayList<>();
+        List<Map<String, Object>> registryMetacardInfo = new ArrayList<>();
+
+        List<Map<String, Object>> sourceInfo = allMetatypeInfo(SOURCE_FILTER);
+
+        try {
+            List<RegistryPackageType> registryMetacardObjects =
+                    federationAdminService.getRegistryObjects();
+            for (RegistryPackageType metacardObject : registryMetacardObjects) {
+                registryMetacardInfo.add(RegistryPackageWebConverter.getRegistryObjectWebMap(
+                        metacardObject));
+            }
+        } catch (FederationAdminException e) {
+            LOGGER.warn("Couldn't get remote registry metacards '{}'", e);
+        }
+
+        Map<Object, Object> sourceRegistryIds = new HashMap<>();
+
+
+        for (Map<String, Object> singleSource : sourceInfo) {
+            Object currentRegistryId = singleSource.get(RegistryObjectMetacardType.REGISTRY_ID);
+            if(currentRegistryId != null) {
+                sourceRegistryIds.put(currentRegistryId,
+                        singleSource);
+            } else {
+                Map<String, Object> singleSourceMapping = new HashMap<>();
+                singleSourceMapping.put(SOURCE_MAP_KEY, singleSource);
+                singleSourceMapping.put(REGISTRY_MAP_KEY, new HashMap<>());
+
+                allSourceInfo.add(singleSourceMapping);
+            }
+        }
+
+        for (Map<String, Object> singleRegistryMetacard : registryMetacardInfo) {
+
+            Object currentRegistryId = singleRegistryMetacard.get(MAP_ENTRY_ID);
+            Map<String, Object> matchingSourceInfo;
+
+            if(sourceRegistryIds.containsKey(currentRegistryId)){
+                matchingSourceInfo = (Map<String, Object>) sourceRegistryIds.get(currentRegistryId);
+                sourceRegistryIds.remove(currentRegistryId);
+            } else {
+                matchingSourceInfo = new HashMap<>();
+            }
+
+            Map<String, Object> singleSourceMapping = new HashMap<>();
+            singleSourceMapping.put(SOURCE_MAP_KEY, matchingSourceInfo);
+            singleSourceMapping.put(REGISTRY_MAP_KEY, singleRegistryMetacard);
+
+            allSourceInfo.add(singleSourceMapping);
+        }
+
+        for (Map.Entry entry : sourceRegistryIds.entrySet()) {
+            Map<String, Object> singleSourceMapping = new HashMap<>();
+            singleSourceMapping.put(SOURCE_MAP_KEY, entry.getValue());
+            singleSourceMapping.put(REGISTRY_MAP_KEY, new HashMap<>());
+
+            allSourceInfo.add(singleSourceMapping);
+        }
+
+        return allSourceInfo;
+    }
+
+    @Override
+    public List<Map<String, Object>> allRegistryInfo() {
+        return allMetatypeInfo(REGISTRY_FILTER);
+    }
+
+    private List<Map<String, Object>> allMetatypeInfo(String filterSpec) {
         // Get list of metatypes
-        List<Map<String, Object>> metatypes = helper.getMetatypes();
+        List<Map<String, Object>> metatypes = helper.getMetatypes(filterSpec);
 
         // Loop through each metatype and find its configurations
         for (Map metatype : metatypes) {
@@ -212,31 +295,37 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
                 ArrayList<Map<String, Object>> configurations = new ArrayList<>();
                 if (configs != null) {
                     for (Configuration config : configs) {
-                        Map<String, Object> source = new HashMap<>();
+                        Map<String, Object> metatypeConfig = new HashMap<>();
 
                         boolean disabled = config.getPid()
                                 .contains(DISABLED);
-                        source.put(MAP_ENTRY_ID, config.getPid());
-                        source.put(MAP_ENTRY_ENABLED, !disabled);
-                        source.put(MAP_ENTRY_FPID, config.getFactoryPid());
+                        metatypeConfig.put(MAP_ENTRY_ID, config.getPid());
+                        metatypeConfig.put(MAP_ENTRY_ENABLED, !disabled);
+                        metatypeConfig.put(MAP_ENTRY_FPID, config.getFactoryPid());
 
                         if (!disabled) {
-                            source.put(MAP_ENTRY_NAME, helper.getName(config));
-                            source.put(MAP_ENTRY_BUNDLE_NAME, helper.getBundleName(config));
-                            source.put(MAP_ENTRY_BUNDLE_LOCATION, config.getBundleLocation());
-                            source.put(MAP_ENTRY_BUNDLE, helper.getBundleId(config));
+                            metatypeConfig.put(MAP_ENTRY_NAME, helper.getName(config));
+                            metatypeConfig.put(MAP_ENTRY_BUNDLE_NAME, helper.getBundleName(config));
+                            metatypeConfig.put(MAP_ENTRY_BUNDLE_LOCATION,
+                                    config.getBundleLocation());
+                            metatypeConfig.put(MAP_ENTRY_BUNDLE, helper.getBundleId(config));
                         } else {
-                            source.put(MAP_ENTRY_NAME, config.getPid());
+                            metatypeConfig.put(MAP_ENTRY_NAME, config.getPid());
                         }
 
                         Dictionary<String, Object> properties = config.getProperties();
                         Map<String, Object> plist = new HashMap<>();
                         for (String key : Collections.list(properties.keys())) {
+                            if (key.equals(RegistryObjectMetacardType.REGISTRY_ID)) {
+                                metatype.put(RegistryObjectMetacardType.REGISTRY_ID,
+                                        properties.get(key));
+                            }
                             plist.put(key, properties.get(key));
-                        }
-                        source.put(MAP_ENTRY_PROPERTIES, plist);
 
-                        configurations.add(source);
+                        }
+                        metatypeConfig.put(MAP_ENTRY_PROPERTIES, plist);
+
+                        configurations.add(metatypeConfig);
                     }
                     metatype.put(MAP_ENTRY_CONFIGURATIONS, configurations);
                 }
@@ -245,12 +334,9 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
             }
         }
 
-        Collections.sort(metatypes, new Comparator<Map<String, Object>>() {
-            @Override
-            public int compare(Map<String, Object> o1, Map<String, Object> o2) {
-                return ((String) o1.get("id")).compareToIgnoreCase((String) o2.get("id"));
-            }
-        });
+        Collections.sort(metatypes,
+                (o1, o2) -> ((String) o1.get("id")).compareToIgnoreCase((String) o2.get("id")));
+
         return metatypes;
     }
 
@@ -263,7 +349,7 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
             return updatedPublishedLocations;
         }
 
-        Filter filter = filterBuilder.attribute(REGISTRY_ID)
+        Filter filter = filterBuilder.attribute(RegistryObjectMetacardType.REGISTRY_ID)
                 .is()
                 .equalTo()
                 .text(source);
@@ -279,7 +365,7 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
                 return updatedPublishedLocations;
             }
             List<Serializable> currentlyPublishedLocations = metacard.getAttribute(
-                    PUBLISHED_LOCATIONS)
+                    RegistryObjectMetacardType.PUBLISHED_LOCATIONS)
                     .getValues();
 
             List<String> publishLocations = destinations.stream()
@@ -304,15 +390,16 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
                             .isEmpty()) {
                         updatedPublishedLocations.addAll(createResponse.getCreatedMetacards()
                                 .stream()
-                                .filter(createdMetacard -> createdMetacard.getAttribute(REGISTRY_ID)
-                                        .equals(metacard.getAttribute(REGISTRY_ID)))
+                                .filter(createdMetacard -> createdMetacard.getAttribute(
+                                        RegistryObjectMetacardType.REGISTRY_ID)
+                                        .equals(metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)))
                                 .map(createdMetacard -> id)
                                 .collect(Collectors.toList()));
                     }
                 } catch (IngestException e) {
                     LOGGER.error("Unable to create metacard in catalogStore {}", id, e);
                     if (checkIfMetacardExists(id,
-                            metacard.getAttribute(REGISTRY_ID)
+                            metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
                                     .getValue()
                                     .toString())) {
                         //The metacard is still in the catalogStore, thus it was persisted
@@ -328,7 +415,7 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
                 } catch (IngestException e) {
                     LOGGER.error("Unable to delete metacard from catalogStore {}", id, e);
                     if (checkIfMetacardExists(id,
-                            metacard.getAttribute(REGISTRY_ID)
+                            metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
                                     .getValue()
                                     .toString())) {
                         //The metacard is still in the catalogStore, thus wasn't unpublished
@@ -338,7 +425,7 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
                 }
             }
 
-            metacard.setAttribute(new AttributeImpl(PUBLISHED_LOCATIONS,
+            metacard.setAttribute(new AttributeImpl(RegistryObjectMetacardType.PUBLISHED_LOCATIONS,
                     updatedPublishedLocations));
             try {
                 catalogFramework.update(new UpdateRequestImpl(metacard.getId(), metacard));
@@ -354,7 +441,7 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
 
     private Boolean checkIfMetacardExists(String storeId, String registryId)
             throws UnsupportedQueryException {
-        Filter filter = filterBuilder.attribute(REGISTRY_ID)
+        Filter filter = filterBuilder.attribute(RegistryObjectMetacardType.REGISTRY_ID)
                 .is()
                 .equalTo()
                 .text(registryId);
@@ -364,11 +451,11 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
         return queryResponse.getHits() > 0;
     }
 
-    protected AdminSourceHelper getHelper() {
-        return new AdminSourceHelper();
+    protected AdminHelper getHelper() {
+        return new AdminHelper();
     }
 
-    protected class AdminSourceHelper {
+    protected class AdminHelper {
         protected ConfigurationAdmin configurationAdmin;
 
         private BundleContext getBundleContext() {
@@ -394,10 +481,10 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
             return sources;
         }
 
-        protected List<Map<String, Object>> getMetatypes() {
+        protected List<Map<String, Object>> getMetatypes(String filterSpec) {
             ConfigurationAdminExt configAdminExt = new ConfigurationAdminExt(configurationAdmin);
             return configAdminExt.addMetaTypeNamesToMap(configAdminExt.getFactoryPidObjectClasses(),
-                    "(|(service.factoryPid=*source*)(service.factoryPid=*Source*)(service.factoryPid=*service*)(service.factoryPid=*Service*))",
+                    filterSpec,
                     "service.factoryPid");
         }
 

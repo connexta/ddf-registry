@@ -411,6 +411,16 @@ public class FederationAdminServiceImpl implements FederationAdminService {
         return registryEntries;
     }
 
+    @Override
+    public List<RegistryPackageType> getRegistryObjects() throws FederationAdminException {
+        List<RegistryPackageType> registryEntries = new ArrayList<>();
+        for (Metacard metacard : getRegistryMetacards()) {
+            String xml = metacard.getMetadata();
+            registryEntries.add(getRegistryPackageFromString(xml));
+        }
+        return registryEntries;
+    }
+
     public void init() {
         try {
             if (getRegistryIdentityMetacard() == null) {

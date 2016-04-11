@@ -18,9 +18,9 @@ public class RegistryConstants {
 
     public static final String REGISTRY_NODE_METACARD_TYPE_NAME = "registry.federation.node";
 
-    public static final String XML_DATE_TIME_TYPE = ":dateTime";
+    public static final String XML_DATE_TIME_TYPE = "date";
 
-    public static final String XML_GEO_TYPE = ":GM_Point";
+    public static final String XML_GEO_TYPE = "GM_Point";
 
     //ebrim constants
     //Object types

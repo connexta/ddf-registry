@@ -10,7 +10,7 @@
  * Lesser General Public License for more details. A copy of the GNU Lesser General Public License
  * is distributed along with this program and can be found at
  * <http://www.gnu.org/licenses/lgpl.html>.
- **/
+ */
 package org.codice.ddf.registry.identification;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -47,15 +47,10 @@ import ddf.catalog.Constants;
 import ddf.catalog.data.Metacard;
 import ddf.catalog.data.impl.MetacardImpl;
 import ddf.catalog.operation.CreateRequest;
-import ddf.catalog.operation.DeleteRequest;
-import ddf.catalog.operation.UpdateRequest;
-import ddf.catalog.operation.UpdateResponse;
 import ddf.catalog.operation.impl.CreateRequestImpl;
 import ddf.catalog.operation.impl.CreateResponseImpl;
 import ddf.catalog.operation.impl.DeleteRequestImpl;
 import ddf.catalog.operation.impl.DeleteResponseImpl;
-import ddf.catalog.operation.impl.UpdateRequestImpl;
-import ddf.catalog.operation.impl.UpdateResponseImpl;
 import ddf.catalog.plugin.StopProcessingException;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.ExternalIdentifierType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryObjectType;
@@ -220,16 +215,6 @@ public class IdentificationPluginTest {
         idp.process(new CreateRequestImpl(sampleData));
     }
 
-    @Test
-    public void testUnusedMethods() throws Exception {
-        UpdateRequest updateRequest = new UpdateRequestImpl("abc123", sampleData);
-        assertThat(updateRequest, equalTo(idp.process(updateRequest)));
-        DeleteRequest deleteRequest = new DeleteRequestImpl("abc123");
-        assertThat(deleteRequest, equalTo(idp.process(deleteRequest)));
-        UpdateResponse updateResponse = new UpdateResponseImpl(updateRequest, null, null);
-        assertThat(updateResponse, equalTo(idp.process(updateResponse)));
-    }
-
     private String convert(String path) throws Exception {
         InputStream inputStream = getClass().getResourceAsStream(path);
         BufferedReader buffer = new BufferedReader(new InputStreamReader(inputStream));
@@ -241,11 +226,11 @@ public class IdentificationPluginTest {
 
         this.configurator =
                 parser.configureParser(Arrays.asList(RegistryObjectType.class.getPackage()
-                                .getName(),
-                        net.opengis.ogc.ObjectFactory.class.getPackage()
-                                .getName(),
-                        net.opengis.gml.v_3_1_1.ObjectFactory.class.getPackage()
-                                .getName()),
+                                        .getName(),
+                                net.opengis.ogc.ObjectFactory.class.getPackage()
+                                        .getName(),
+                                net.opengis.gml.v_3_1_1.ObjectFactory.class.getPackage()
+                                        .getName()),
                         this.getClass()
                                 .getClassLoader());
 

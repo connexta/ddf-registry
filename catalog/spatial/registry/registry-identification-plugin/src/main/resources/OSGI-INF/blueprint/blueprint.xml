@@ -16,9 +16,12 @@
 
     <reference id="xmlParser" interface="org.codice.ddf.parser.Parser" filter="(id=xml)"
                availability="mandatory"/>
-    <reference id="federationAdmin" interface="org.codice.ddf.registry.federationadmin.service.FederationAdminService" availability="mandatory"/>
+    <reference id="federationAdmin"
+               interface="org.codice.ddf.registry.federationadmin.service.FederationAdminService"
+               availability="mandatory"/>
 
-    <bean id="identificationPlugin" class="org.codice.ddf.registry.identification.IdentificationPlugin" init-method="init">
+    <bean id="identificationPlugin"
+          class="org.codice.ddf.registry.identification.IdentificationPlugin" init-method="init">
         <property name="parser" ref="xmlParser"/>
         <property name="federationAdmin" ref="federationAdmin"/>
     </bean>

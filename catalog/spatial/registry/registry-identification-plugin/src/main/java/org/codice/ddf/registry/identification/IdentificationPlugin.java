@@ -10,7 +10,7 @@
  * Lesser General Public License for more details. A copy of the GNU Lesser General Public License
  * is distributed along with this program and can be found at
  * <http://www.gnu.org/licenses/lgpl.html>.
- **/
+ */
 package org.codice.ddf.registry.identification;
 
 import java.io.ByteArrayInputStream;
@@ -18,7 +18,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -33,15 +35,20 @@ import org.codice.ddf.registry.common.RegistryConstants;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Charsets;
 
+import ddf.catalog.Constants;
+import ddf.catalog.data.Attribute;
 import ddf.catalog.data.Metacard;
 import ddf.catalog.data.impl.AttributeImpl;
 import ddf.catalog.operation.CreateRequest;
 import ddf.catalog.operation.CreateResponse;
 import ddf.catalog.operation.DeleteRequest;
 import ddf.catalog.operation.DeleteResponse;
+import ddf.catalog.operation.OperationTransaction;
 import ddf.catalog.operation.UpdateRequest;
 import ddf.catalog.operation.UpdateResponse;
 import ddf.catalog.plugin.PluginExecutionException;
@@ -69,6 +76,8 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
 
     private Set<String> registryIds = ConcurrentHashMap.newKeySet();
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(IdentificationPlugin.class);
+
     @Override
     public CreateRequest process(CreateRequest input)
             throws PluginExecutionException, StopProcessingException {
@@ -91,10 +100,63 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
     @Override
     public UpdateRequest process(UpdateRequest input)
             throws PluginExecutionException, StopProcessingException {
+
+        OperationTransaction operationTransaction = (OperationTransaction) input.getProperties()
+                .get(Constants.OPERATION_TRANSACTION_KEY);
+
+        if (operationTransaction == null) {
+            throw new UnsupportedOperationException(
+                    "Unable to get OperationTransaction from UpdateRequest");
+        }
+
+        if (Requests.isLocal(input)) {
+            List<Metacard> previousMetacards = operationTransaction.getPreviousStateMetacards();
+
+            HashMap<Metacard, Metacard> updateMetacards = new HashMap<>();
+            ArrayList<Metacard> metacardsToRemove = new ArrayList<>();
+
+            for (Map.Entry entry : input.getUpdates()) {
+                Metacard updateMetacard = (Metacard) entry.getValue();
+                for (Metacard existingMetacard : previousMetacards) {
+                    if (existingMetacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
+                            .equals(updateMetacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID))) {
+                        if (updateMetacard.getModifiedDate()
+                                .before(existingMetacard.getModifiedDate())
+                                || updateMetacard.getModifiedDate()
+                                .equals(existingMetacard.getModifiedDate())) {
+                            metacardsToRemove.add(existingMetacard);
+                        } else {
+                            updateMetacards.put(updateMetacard, existingMetacard);
+                        }
+                    }
+                }
+            }
+
+            input.getUpdates()
+                    .removeAll(metacardsToRemove);
+
+            for (Map.Entry<Metacard, Metacard> entry : updateMetacards.entrySet()) {
+                Metacard updateMetacard = (Metacard) entry.getKey();
+                Metacard existingMetacard = (Metacard) entry.getValue();
+
+                for (String transientAttributeKey : RegistryObjectMetacardType.TRANSIENT_ATTRIBUTES) {
+                    Attribute transientAttribute =
+                            updateMetacard.getAttribute(transientAttributeKey);
+                    if (transientAttribute == null) {
+                        transientAttribute = existingMetacard.getAttribute(transientAttributeKey);
+                        if (transientAttribute != null) {
+                            updateMetacard.setAttribute(transientAttribute);
+                        }
+                    }
+                }
+            }
+
+        }
         return input;
     }
 
     @Override
+
     public DeleteRequest process(DeleteRequest input)
             throws PluginExecutionException, StopProcessingException {
         return input;
@@ -209,8 +271,9 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                             registryObjectTypeJAXBElement,
                             outputStream);
 
-                    metacard.setAttribute(new AttributeImpl(Metacard.METADATA,
-                            new String(outputStream.toByteArray(), Charsets.UTF_8)));
+                    metacard.setAttribute(new AttributeImpl(Metacard.METADATA, new String(
+                            outputStream.toByteArray(),
+                            Charsets.UTF_8)));
                 }
             }
 

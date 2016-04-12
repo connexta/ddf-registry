@@ -14,22 +14,23 @@
  **/
 /*global define*/
 define([
-        'text!templates/emptyView.handlebars',
-        'marionette',
-        'icanhaz'
-        ],function (emptyViewTemplate, Marionette, ich) {
-    if (!ich.emptyViewTemplate) {
-        ich.addTemplate('emptyViewTemplate', emptyViewTemplate);
-    }
+        'js/view/Accordion.view.js',
+        'marionette'
+        ],function (AccordionView, Marionette) {
 
-    var EmptyView = {};
-    
-    EmptyView.sources = Marionette.ItemView.extend({
-        template: 'emptyViewTemplate',
-               serializeData: function() {
-                   return  {message: "There are no sources configured."};
-               }
-           });
 
-    return EmptyView;
+    var AccordionCollectionView = {};
+
+    AccordionCollectionView = Marionette.CollectionView.extend({
+        itemView: AccordionView,
+        initialize: function(){
+            console.log(this.models);
+            this.render();
+        },
+        onRender: function(){
+            console.log(this.el);
+        }
+    });
+
+    return AccordionCollectionView;
 });

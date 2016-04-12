@@ -11,7 +11,7 @@
  *
  **/
  --}}
- 
+
 <div class="modal-dialog">
     <div class="modal-content">
         <div class="modal-header">
@@ -24,21 +24,38 @@
                 {{/is}}
             </h4>
         </div>
+        <div class="modal-organization">
+        </div>
+
         <div class="modal-body">
             <form class="form-horizontal add-federated-source container-fluid">
                 <fieldset>
                     <div class="sourceName"></div>
                     <div class="bound-controls">
                         <div class="control-group">
-                            <label class="control-label">Source Type</label>
-                            <select class="form-control input-sm sourceTypesSelect"></select>
+                            <label class="control-label">Active Binding</label>
+
+                            <select class="form-control input-sm activeBindingSelect"></select>
+                            <label class="control-label2">Binding Configurations:</label>
                         </div>
                         <div class="modal-details"></div>
                     </div>
                 </fieldset>
             </form>
         </div>
-
+        <div class="modal-accordions">
+        </div>
+        <button class="add-configuration">Add Configuration</button>
+        <select class="form-control input-sm addConfigSelect"></select>
+        <div id="checkboxes">
+            <label>Publish node to the following registries:</label>
+            <ul>
+                <li><input type="checkbox"> checkbox 1</li>
+                <li><input type="checkbox"> checkbox 2</li>
+                <li><input type="checkbox"> checkbox 3</li>
+                <li><input type="checkbox"> checkbox 4</li>
+            </ul>
+        </div>
         <div class="modal-footer">
             <div class="btn-group">
                 {{#is mode 'edit'}}

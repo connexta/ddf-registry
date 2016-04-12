@@ -13,23 +13,30 @@
  *
  **/
 /*global define*/
-define([
-        'text!templates/emptyView.handlebars',
-        'marionette',
-        'icanhaz'
-        ],function (emptyViewTemplate, Marionette, ich) {
-    if (!ich.emptyViewTemplate) {
-        ich.addTemplate('emptyViewTemplate', emptyViewTemplate);
-    }
+define(['backbone'],
+function (Backbone) {
 
-    var EmptyView = {};
-    
-    EmptyView.sources = Marionette.ItemView.extend({
-        template: 'emptyViewTemplate',
-               serializeData: function() {
-                   return  {message: "There are no sources configured."};
-               }
-           });
+    var Organization = {};
 
-    return EmptyView;
+    Organization.Model = Backbone.Model.extend({
+
+         name : 'name',
+         address : 'address',
+         phoneNumber : '555-555-5555',
+         emailAddress : 'unknown@user.com',
+
+        initializeFromOrganization: function(org){
+            this.name = org.name;
+            this.address = org.address;
+            this.phoneNumber = org.phoneNumber;
+            this.emailAddress = org.emailAddress;
+        },
+
+            initialize: function(pid) {
+                this.url += pid;
+
+            }
+        });
+
+    return Organization;
 });

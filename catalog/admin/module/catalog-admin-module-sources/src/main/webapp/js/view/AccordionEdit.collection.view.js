@@ -13,7 +13,6 @@
  *
  **/
 /*global define*/
-/** Main view page for add. */
 define([
     'marionette',
     'icanhaz',
@@ -24,11 +23,13 @@ define([
     'text!templates/configuration/configurationItem.handlebars',
     'text!templates/configuration/textTypeListHeader.handlebars',
     'text!templates/configuration/textTypeList.handlebars',
-    'text!templates/configuration/checkboxType.handlebars'
-    ], function (Marionette, ich, _, Backbone, wreqr, configurationEdit, configurationItem, textTypeListHeader, textTypeList, checkboxType ) {
+    'text!templates/configuration/checkboxType.handlebars',
+    'text!templates/accordion.hbs',
+    'js/view/Accordion.view.js'
 
-    var ConfigurationEditView = {};
+        ], function (Marionette, ich, _, Backbone, wreqr, configurationEdit, configurationItem, textTypeListHeader, textTypeList, checkboxType, accordion, AccordionView ) {
 
+var AccordionEditView = {};
 
     if(!ich['configuration.configurationItem']) {
         ich.addTemplate('configuration.configurationItem', configurationItem);
@@ -42,11 +43,19 @@ define([
     if(!ich['configuration.textTypeList']) {
         ich.addTemplate('configuration.textTypeList', textTypeList);
     }
-    if(!ich['configuration.checkboxType']) {
-        ich.addPartial('configuration.checkboxType', checkboxType);
+    if (!ich.accordion) {
+        ich.addTemplate('accordion', accordion);
     }
+    if(!ich['configuration.checkboxType']) {
+        ich.addTemplate('configuration.checkboxType', checkboxType);
+    }
+    //WHY DOES THIS NEXT CODE BREAK THE VIEW??
+//    if(!ich['configuration.checkboxType']) {
+//        ich.addPartial('configuration.checkboxType', checkboxType);
+//    }
 
-    ConfigurationEditView.ConfigurationMultiValuedEntry = Marionette.ItemView.extend({
+
+    AccordionEditView.ConfigurationMultiValuedEntry = Marionette.ItemView.extend({
         template: 'configuration.textTypeList',
         tagName: 'tr',
         initialize: function() {
@@ -67,14 +76,17 @@ define([
         }
     });
 
-    ConfigurationEditView.ConfigurationMultiValueCollection = Marionette.CollectionView.extend({
-        itemView: ConfigurationEditView.ConfigurationMultiValuedEntry,
+
+    AccordionEditView.ConfigurationMultiValueCollection = Marionette.CollectionView.extend({
+        itemView: AccordionEditView.ConfigurationMultiValuedEntry,
         tagName: 'table'
     });
 
-    ConfigurationEditView.ConfigurationMultiValuedItem = Marionette.Layout.extend({
+
+
+    AccordionEditView.ConfigurationMultiValuedItem = Marionette.Layout.extend({
         template: 'configuration.textTypeListHeader',
-        itemView: ConfigurationEditView.ConfigurationMultiValueCollection,
+        itemView: AccordionEditView.ConfigurationMultiValueCollection,
         tagName: 'div',
         regions: {
             listItems: '#listItems'
@@ -121,10 +133,10 @@ define([
             _.each(this.collectionArray.models, function(model) {
                 values.push(model.get('value'));
             });
-            this.configuration.get('configurations').models[0].get('properties').set(this.model.get('id'), values);
+            this.configuration.get('properties').set(this.model.get('id'), values);
         },
         onRender: function() {
-            this.listItems.show(new ConfigurationEditView.ConfigurationMultiValueCollection({
+            this.listItems.show(new AccordionEditView.ConfigurationMultiValueCollection({
                 collection: this.collectionArray
             }));
 
@@ -141,12 +153,11 @@ define([
         }
     });
 
-    ConfigurationEditView.ConfigurationItem = Marionette.ItemView.extend({
-        template: 'configuration.configurationItem'
-    });
 
-    ConfigurationEditView.ConfigurationCollection = Marionette.CollectionView.extend({
-        itemView: ConfigurationEditView.ConfigurationItem,
+
+
+     AccordionEditView.ConfigurationCollection = Marionette.CollectionView.extend({
+        itemView: configurationEdit.ConfigurationItem,
         initialize: function(options) {
             this.service = options.service;
             this.listenTo(wreqr.vent, 'poller:start', this.render);
@@ -166,40 +177,40 @@ define([
                         item.set({ 'note': property.note});
                     }
                     var options = _.extend({model: item, configuration: configuration}, itemViewOptions);
-
                     view = new ItemViewType(options);
-                }
+                 }
             });
             if(view) {
                 return view;
             }
-            return new Marionette.ItemView();
-        },
-        /**
-         * Set up the popovers based on if the selector has a description.
-         */
-        setupPopOvers: function() {
-            var view = this;
-            this.service.get('metatype').forEach(function(each) {
-                if(!_.isUndefined(each.get("description"))) {
-                   var options,
-                        selector = ".description[data-title='" + each.id + "']";
-                    options = {
-                        title: each.get("name"),
-                        content: each.get("description"),
-                        trigger: 'hover'
-                    };
-                    view.$(selector).popover(options);
+                return new Marionette.ItemView();
+            },
+            /**
+            * Set up the popovers based on if the selector has a description.
+            */
+            setupPopOvers: function() {
+                var view = this;
+                this.service.get('metatype').forEach(function(each) {
+                    if(!_.isUndefined(each.get("description"))) {
+                       var options,
+                       selector = ".description[data-title='" + each.id + "']";
+                       options = {
+                           title: each.get("name"),
+                           content: each.get("description"),
+                           trigger: 'hover'
+                       };
+                       view.$(selector).popover(options);
+                    }
+                });
+            },
+            getItemView: function( item ) {
+                if(item.get('cardinality') > 0 || item.get('cardinality') < 0) {
+                    return AccordionEditView.ConfigurationMultiValuedItem;
+                } else {
+                    return AccordionView;
                 }
-            });
-        },
-        getItemView: function( item ) {
-            if(item.get('cardinality') > 0 || item.get('cardinality') < 0) {
-                return ConfigurationEditView.ConfigurationMultiValuedItem;
-            } else {
-                return ConfigurationEditView.ConfigurationItem;
             }
-        }
     });
-    return ConfigurationEditView;
+
+    return AccordionEditView;
 });

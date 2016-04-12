@@ -18,6 +18,9 @@ define([
         'icanhaz',
         'marionette',
         'backbone',
+        'js/model/Accordion.collection.js',
+        'js/view/AccordionCollectionView.js',
+        'js/view/AccordionEdit.collection.view.js',
         'js/view/ConfigurationEdit.view.js',
         'js/model/Service.js',
         'js/view/Utils.js',
@@ -26,35 +29,59 @@ define([
         'jquery',
         'text!templates/sourceModal.handlebars',
         'text!templates/optionListType.handlebars',
-        'text!templates/textType.handlebars'
-],
-function (ich,Marionette,Backbone,ConfigurationEdit,Service,Utils,wreqr,_,$,modalSource,optionListType,textType) {
+        'text!templates/textType.handlebars',
+        'text!templates/sourceOrganization.hbs',
+        'text!templates/optionLabelType.hbs',
+        'text!templates/configurationDropdown.hbs'
 
-    ich.addTemplate('modalSource', modalSource);
+
+
+//                 'js/view/AccordionEdit.collection.view.js'
+
+
+], function (ich,Marionette,Backbone,AccordionCollection,AccordionCollectionView,AccordionEdit,ConfigurationEdit,Service,Utils,wreqr,_,$,sourceModal,optionListType,textType, sourceOrganization, optionLabelType, configurationDropdown) {
+
+    if (!ich.sourceOrganization) {
+        ich.addTemplate('sourceOrganization', sourceOrganization);
+    }
+    if (!ich.sourceModal) {
+        ich.addTemplate('sourceModal', sourceModal);
+    }
     if (!ich.optionListType) {
         ich.addTemplate('optionListType', optionListType);
     }
     if (!ich.textType) {
         ich.addTemplate('textType', textType);
     }
+    if (!ich.optionLabelType) {
+        ich.addTemplate('optionLabelType', optionLabelType);
+    }
+    if (!ich.configurationDropdown) {
+        ich.addTemplate('configurationDropdown', configurationDropdown);
+    }
 
     var ModalSource = {};
 
     ModalSource.View = Marionette.Layout.extend({
-        template: 'modalSource',
+        template: 'sourceModal',
         className: 'modal',
-        /**
+        /** q
          * Button events, right now there's a submit button
          * I do not know where to go with the cancel button.
          */
         events: {
-            "change .sourceTypesSelect" : "handleTypeChange",
+            "change .activeBindingSelect" : "handleTypeChange",
+            "change .addConfigSelect" : "handleAddConfigSelect",
             "click .submit-button": "submitData",
             "click .cancel-button": "cancel",
-            "change .sourceName": "sourceNameChanged"
+            "change .sourceName": "sourceNameChanged",
+            "click .add-configuration": "addConfiguration"
         },
         regions: {
+            organization: '.modal-organization',
             details: '.modal-details',
+            accordions: '.modal-accordions',
+            addConfig: '.addConfigSelect',
             buttons: '.source-buttons'
         },
         serializeData: function(){
@@ -85,6 +112,8 @@ function (ich,Marionette,Backbone,ConfigurationEdit,Service,Utils,wreqr,_,$,moda
             this.$el.attr('aria-hidden', "true");
             this.renderNameField();
             this.renderTypeDropdown();
+            this.renderAddConfigDropdown();
+            this.renderBindingAccordions();
             this.initRadioButtonUI(properties);
             if (!_.isNull(this.model)) {
                 this.rebind(properties);
@@ -97,7 +126,7 @@ function (ich,Marionette,Backbone,ConfigurationEdit,Service,Utils,wreqr,_,$,moda
             _.each($radios, function(radio) {
                 var $radio = view.$(radio);
                 var $label = $radio.closest('label.btn');
-                
+
                 if (boundModel.get($radio.attr('name')) === $radio.attr('value')) {
                     $label.addClass('active');
                 } else {
@@ -126,9 +155,21 @@ function (ich,Marionette,Backbone,ConfigurationEdit,Service,Utils,wreqr,_,$,moda
          * Renders the type dropdown box
          */
         renderTypeDropdown: function() {
-            var $sourceTypeSelect = this.$(".sourceTypesSelect");
+            var $sourceTypeSelect = this.$(".activeBindingSelect");
             var configs = this.getAllConfigs();
             $sourceTypeSelect.append(ich.optionListType({"list": configs.toJSON()}));
+            $sourceTypeSelect.val(configs.at(0).get('id')).change();
+        },
+        renderAddConfigDropdown: function() {
+            var $addConfigSourceTypeSelect = this.$(".addConfigSelect");
+            var configs = this.getAllConfigs();
+            $addConfigSourceTypeSelect.append(ich.optionListType({"list": configs.toJSON()}));
+            $addConfigSourceTypeSelect.val(configs.at(0).get('id')).change();
+        },
+        renderBindingAccordions: function(){
+            var $sourceTypeSelect = this.$(".bindingDropDownLabels");
+            var configs = this.getAllConfigs();
+            $sourceTypeSelect.append(ich.optionLabelType({"list": configs.toJSON()}));
             $sourceTypeSelect.val(configs.at(0).get('id')).change();
         },
         getAllConfigs: function() {
@@ -210,6 +251,10 @@ function (ich,Marionette,Backbone,ConfigurationEdit,Service,Utils,wreqr,_,$,moda
             var newName = this.$(evt.currentTarget).find('input').val().trim();
             this.checkName(newName);
         },
+        addConfiguration: function(){
+            var t = 5;
+            t+=5;
+        },
         checkName: function(newName) {
             var view = this;
             var model = view.model;
@@ -269,7 +314,7 @@ function (ich,Marionette,Backbone,ConfigurationEdit,Service,Utils,wreqr,_,$,moda
             var configs = this.parentModel.get('collection');
             var match = configs.find(function(sourceConfig) {
                     return sourceConfig.get('name') === name;
-                }); 
+                });
             return !_.isUndefined(match);
         },
         nameIsValid: function(name, fpid) {
@@ -326,7 +371,7 @@ function (ich,Marionette,Backbone,ConfigurationEdit,Service,Utils,wreqr,_,$,moda
         handleTypeChange: function(evt) {
             var view = this;
             var $select = this.$(evt.currentTarget);
-            if ($select.hasClass('sourceTypesSelect')) {
+            if ($select.hasClass('activeBindingSelect')) {
                 this.modelBinder.unbind();
                 var config = view.findConfigFromId($select.val());
                 view.model.set('editConfig', config);
@@ -339,6 +384,26 @@ function (ich,Marionette,Backbone,ConfigurationEdit,Service,Utils,wreqr,_,$,moda
             }
             view.$el.trigger('shown.bs.modal');
         },
+        handleAddConfigSelect: function(evt){
+                    var view = this;
+                    var $select = this.$(evt.currentTarget);
+                    if ($select.hasClass('addConfigSelect')) {
+                        this.modelBinder.unbind();
+                        //var configToAdd = view.findConfigFromId($select.val());
+
+                        //view.model.set('editConfig', config);
+
+                        //var properties = config.get('properties');
+                        //view.checkName(view.$('.sourceName').find('input').val().trim());
+                        //view.renderDetails(config);
+                        //view.initRadioButtonUI(properties);
+                        //view.rebind(properties);
+                    }
+                    view.$el.trigger('shown.bs.modal');
+
+        },
+
+
         rebind: function (properties) {
             var $boundData = this.$el.find('.bound-controls');
             var bindings = Backbone.ModelBinder.createDefaultBindings($boundData, 'name');
@@ -346,6 +411,7 @@ function (ich,Marionette,Backbone,ConfigurationEdit,Service,Utils,wreqr,_,$,moda
             delete bindings.value;
             this.modelBinder.bind(properties, $boundData, bindings);
         },
+
         findConfigFromId: function(id) {
             var model = this.model;
             var currentConfig = model.get('currentConfiguration');
@@ -373,15 +439,113 @@ function (ich,Marionette,Backbone,ConfigurationEdit,Service,Utils,wreqr,_,$,moda
                 var toDisplay = service.get('metatype').filter(function (mt) {
                     return !_.contains(['shortname', 'id'], mt.get('id'));
                 });
-                this.details.show(new ConfigurationEdit.ConfigurationCollection({
-                    collection: new Service.MetatypeList(toDisplay),
-                    service: service,
-                    configuration: configuration}));
-            } else {
-                this.$(this.details.el).html('');
-                this.$(this.buttons.el).html('');
-            }
+//==? POSSIBLE BUG
+        if(this.mode === 'edit'){
+        var OrganizationSource = {};
+
+        OrganizationSource.View = Marionette.ItemView.extend({
+               template: 'sourceOrganization',
+               initialize: function() {
+
+               },
+               onRender: function(){
+
+               }
+
+
+        });
+
+
+        var Organization = Backbone.Model.extend({
+        defaults: {
+                    name:"TESTNAME",
+                     address:"address",
+                     phoneNumber:"555-555-5555",
+                     emailAddress:"unknown@user.com"
+                }
+        });
+
+        var someOrg = new Organization();
+        var orgViewInstance = new OrganizationSource.View({model:someOrg});
+        this.organization.show(orgViewInstance);
         }
+//        var Dropdown = { };
+//
+//        Dropdown.View = Marionette.ItemView.extend({
+//               template: 'configurationDropdown',
+//               initialize: function() {
+//
+//               },
+//               onRender: function(){
+//
+//               }
+//
+//
+//        });
+
+            var allConfigs = this.getAllConfigs();
+
+            var accordionCollection = new AccordionCollection();
+
+            //var currentConfig1 = this.model.get('currentConfiguration');
+            var disabledConfigs1 = this.model.get('disabledConfigurations');
+
+            var cons = disabledConfigs1.models;
+
+            allConfigs.forEach(function(config, i){
+
+
+
+//ISSUE: Why do I use cons[i] and never currentConfig1???
+            var service = cons[i].get('service');
+
+                 toDisplay = service.get('metatype').filter(function (mt) {
+                return !_.contains(['shortname', 'id'], mt.get('id'));
+            });
+
+         var someCollection = new Service.MetatypeList(toDisplay);
+
+
+               accordionCollection.add({
+                    title: config.get('name'),
+                    contentView: new ConfigurationEdit.ConfigurationCollection({
+                                                         collection: someCollection,
+                                                         service: service,
+                                                         configuration: config})
+               });
+            }.bind(this));
+
+
+            //this.accordions.show()
+
+            this.accordions.show(new AccordionCollectionView({
+                collection: accordionCollection
+            }));
+
+
+
+
+
+    //for (i = 0; i < allAccordionContents.length; i++) {
+    //    allAccordionContents[i].append('lkjlkjl');
+    //  }
+            //this.accordionContent.html('');
+
+
+
+
+
+
+//                    this.details.show(new ConfigurationEdit.ConfigurationCollection({
+//                        collection: someCollection,
+//                        service: service,
+//                        configuration: configuration}));
+                } else {
+                    this.$(this.organization.el).html('');
+                    this.$(this.details.el).html('');
+                    this.$(this.buttons.el).html('');
+                }
+            }
     });
 
     return ModalSource;

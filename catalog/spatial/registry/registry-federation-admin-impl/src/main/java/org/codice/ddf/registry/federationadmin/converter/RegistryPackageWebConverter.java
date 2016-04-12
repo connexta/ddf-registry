@@ -13,9 +13,8 @@
  */
 package org.codice.ddf.registry.federationadmin.converter;
 
-import static org.joda.time.format.ISODateTimeFormat.dateOptionalTimeParser;
-
 import java.math.BigInteger;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -1611,8 +1610,8 @@ public class RegistryPackageWebConverter {
                 List<String> values = valueList.getValue();
 
                 for (String dateString : values) {
-                    Date date = dateOptionalTimeParser().parseDateTime(dateString)
-                            .toDate();
+                    Date date = Date.from(ZonedDateTime.parse(dateString)
+                            .toInstant());
                     if (date != null) {
                         dates.add(date);
                     }

@@ -215,4 +215,14 @@ public interface FederationAdminService {
      * @throws FederationAdminException If an exception is thrown trying to unmarshal the xml
      */
     List<RegistryPackageType> getRegistryObjects() throws FederationAdminException;
+
+    /**
+     * Refreshes registry metacards to match changes to any of the subscribed registries.
+     * A query get the current remote registry metacards and compares them to the metacards in the registry, updating or adding if needed.
+     * <p>
+     * This is run by a camel route set to a configurable interval.
+     *
+     * @throws FederationAdminException If any exceptions are thrown by the CatalogFramework on the create, query, or update attempts.
+     */
+    void refreshRegistrySubscriptions() throws FederationAdminException;
 }

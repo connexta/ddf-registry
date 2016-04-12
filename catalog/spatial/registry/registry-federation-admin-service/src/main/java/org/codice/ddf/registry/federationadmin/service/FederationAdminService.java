@@ -207,4 +207,6 @@ public interface FederationAdminService {
      * @throws FederationAdminException If an exception is thrown trying to unmarshal the xml
      */
     List<RegistryPackageType> getLocalRegistryObjects() throws FederationAdminException;
+
+    void refreshRegistriesForSubscriptions() throws FederationAdminException;
 }

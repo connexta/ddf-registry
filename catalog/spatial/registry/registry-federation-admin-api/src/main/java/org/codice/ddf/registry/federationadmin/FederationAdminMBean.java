@@ -23,7 +23,7 @@ import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
  * for example, to interact with the FederationAdminService.
  */
 public interface FederationAdminMBean {
-    String OBJECT_NAME = "ddf.catalog.registy:type=FederationAdminMBean";
+    String OBJECT_NAME = "org.codice.ddf.registry:type=FederationAdminMBean";
 
     /**
      * Create a local entry in the registry catalog for the given object map.

@@ -49,6 +49,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
+import org.osgi.service.cm.ConfigurationAdmin;
 
 import ddf.catalog.data.Metacard;
 import ddf.catalog.data.impl.AttributeImpl;
@@ -78,6 +79,9 @@ public class FederationAdminTest {
     @Mock
     private RegistryTransformer registryTransformer;
 
+    @Mock
+    private ConfigurationAdmin configurationAdmin;
+
     private static final String LOCAL_NODE_KEY = "localNodes";
 
     @Before
@@ -94,7 +98,7 @@ public class FederationAdminTest {
 
         when(mockParser.configureParser(anyList(), any(ClassLoader.class))).thenReturn(
                 mockConfigurator);
-        federationAdmin = new FederationAdmin();
+        federationAdmin = new FederationAdmin(configurationAdmin);
         federationAdmin.setFederationAdminService(federationAdminService);
         federationAdmin.setRegistryTransformer(registryTransformer);
         federationAdmin.setParser(mockParser);

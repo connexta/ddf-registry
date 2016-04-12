@@ -26,11 +26,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import javax.xml.bind.JAXBElement;
@@ -38,6 +40,7 @@ import javax.xml.bind.Marshaller;
 import javax.xml.datatype.DatatypeConstants;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.codice.ddf.configuration.SystemBaseUrl;
@@ -45,6 +48,7 @@ import org.codice.ddf.configuration.SystemInfo;
 import org.codice.ddf.parser.Parser;
 import org.codice.ddf.parser.ParserConfigurator;
 import org.codice.ddf.parser.ParserException;
+import org.codice.ddf.registry.api.RegistryStore;
 import org.codice.ddf.registry.common.RegistryConstants;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
@@ -55,6 +59,10 @@ import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory;
 import org.opengis.filter.sort.SortBy;
 import org.opengis.filter.sort.SortOrder;
+import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.FrameworkUtil;
+import org.osgi.framework.ServiceReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,7 +122,11 @@ public class FederationAdminServiceImpl implements FederationAdminService {
 
     private FilterBuilder filterBuilder;
 
+    private int pollerInterval = 0;
+
     private final Security security;
+
+    private final Set<String> pollableSourceIds = ConcurrentHashMap.newKeySet();
 
     public FederationAdminServiceImpl() {
         this(Security.getInstance());
@@ -411,6 +423,23 @@ public class FederationAdminServiceImpl implements FederationAdminService {
         return registryEntries;
     }
 
+    @Override
+    public void refreshRegistriesForSubscriptions() throws FederationAdminException {
+        LOGGER.info("=-=-=-=-=-= REFRESH REGISTRIES {} =-=-=-=-=-=", java.time.LocalTime.now());
+
+        if (CollectionUtils.isEmpty(pollableSourceIds)) {
+            return;
+        }
+
+        Map<Serializable, Metacard> nonLocalRegistryUpdates =
+                getRegistryUpdatesForRemoteRegistries();
+
+        if (MapUtils.isNotEmpty(nonLocalRegistryUpdates)) {
+            writeRemoteUpdates(nonLocalRegistryUpdates);
+        }
+
+    }
+
     public void init() {
         try {
             if (getRegistryIdentityMetacard() == null) {
@@ -418,6 +447,156 @@ public class FederationAdminServiceImpl implements FederationAdminService {
             }
         } catch (FederationAdminException e) {
             LOGGER.error("There was an error bringing up the Federation Admin Service.", e);
+        }
+    }
+
+    public void bindRegistryStore(ServiceReference serviceReference) {
+        BundleContext bundleContext = getBundleContext();
+
+        if (serviceReference != null && bundleContext != null) {
+            RegistryStore registryStore =
+                    (RegistryStore) bundleContext.getService(serviceReference);
+
+            if (registryStore.isPullAllowed()) {
+                pollableSourceIds.add(registryStore.getId());
+            }
+        }
+    }
+
+    public void unbindRegistryStore(ServiceReference serviceReference) {
+        BundleContext bundleContext = getBundleContext();
+
+        if (serviceReference != null && bundleContext != null) {
+            RegistryStore registryStore =
+                    (RegistryStore) bundleContext.getService(serviceReference);
+
+            pollableSourceIds.remove(registryStore.getId());
+        }
+    }
+
+    private Map<String, Metacard> getRemoteRegistryMetacardsMap() throws FederationAdminException {
+        Map<String, Metacard> remoteRegistryMetacards = new HashMap<>();
+
+        Filter filter =
+                FILTER_FACTORY.and(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.CONTENT_TYPE),
+                        RegistryConstants.REGISTRY_NODE_METACARD_TYPE_NAME),
+                        FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.TAGS),
+                                RegistryConstants.REGISTRY_TAG));
+
+        Query query = new QueryImpl(filter);
+        QueryRequest queryRequest = new QueryRequestImpl(query, new HashSet<>(pollableSourceIds));
+
+        Subject systemSubject = security.getSystemSubject();
+        queryRequest.getProperties()
+                .put(SecurityConstants.SECURITY_SUBJECT, systemSubject);
+
+        try {
+            QueryResponse queryResponse = catalogFramework.query(queryRequest);
+            List<Result> results = queryResponse.getResults();
+
+            List<Metacard> fullList = new ArrayList<>();
+            fullList.addAll(results.stream()
+                    .map(Result::getMetacard)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList()));
+
+            for (Metacard metacard : fullList) {
+                String registryId = metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
+                        .getValue()
+                        .toString();
+                if (remoteRegistryMetacards.containsKey(registryId)) {
+                    Metacard currentMetacard = remoteRegistryMetacards.get(registryId);
+                    if (currentMetacard.getModifiedDate()
+                            .before(metacard.getModifiedDate())) {
+                        remoteRegistryMetacards.put(registryId, metacard);
+                    }
+                } else {
+                    remoteRegistryMetacards.put(registryId, metacard);
+                }
+            }
+
+        } catch (UnsupportedQueryException | SourceUnavailableException | FederationException e) {
+            String message = "Error querying for subscribed metacards;";
+            LOGGER.error("{} For source ids: {}", message, pollableSourceIds);
+            throw new FederationAdminException(message, e);
+        }
+
+        return remoteRegistryMetacards;
+    }
+
+    private Map<String, Metacard> getNonLocalRegistryMetacardsMap()
+            throws FederationAdminException {
+
+        Map<String, Metacard> nonLocalMetacardsMap = new HashMap<>();
+        List<Filter> filters = new ArrayList<>();
+        filters.add(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.CONTENT_TYPE),
+                RegistryConstants.REGISTRY_NODE_METACARD_TYPE_NAME));
+        filters.add(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.TAGS),
+                RegistryConstants.REGISTRY_TAG));
+        filters.add(filterBuilder.not(filterBuilder.attribute(RegistryObjectMetacardType.REGISTRY_LOCAL_NODE)
+                .is()
+                .bool(true)));
+
+        Filter filter = FILTER_FACTORY.and(filters);
+
+        List<Metacard> nonLocalMetacardList = getRegistryMetacardsByFilter(filter);
+
+        for (Metacard metacard : nonLocalMetacardList) {
+            String registryId = metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
+                    .getValue()
+                    .toString();
+            nonLocalMetacardsMap.put(registryId, metacard);
+        }
+
+        return nonLocalMetacardsMap;
+    }
+
+    private Map<Serializable, Metacard> getRegistryUpdatesForRemoteRegistries()
+            throws FederationAdminException {
+        Map<String, Metacard> remoteRegistryMetacardsMap = getRemoteRegistryMetacardsMap();
+        Map<String, Metacard> nonLocalMetacardsMap = getNonLocalRegistryMetacardsMap();
+
+        Map<Serializable, Metacard> updateMap = new HashMap<>();
+
+        remoteRegistryMetacardsMap.entrySet()
+                .stream()
+                .filter(remoteRegistry -> nonLocalMetacardsMap.containsKey(remoteRegistry.getKey()))
+                .forEach(remoteRegistry -> {
+                    Metacard existingMetacard = nonLocalMetacardsMap.get(remoteRegistry.getKey());
+
+                    if (remoteRegistry.getValue()
+                            .getModifiedDate()
+                            .after(existingMetacard.getModifiedDate())) {
+                        updateMap.put(remoteRegistry.getKey(), remoteRegistry.getValue());
+                    }
+                });
+
+        return updateMap;
+    }
+
+    private void writeRemoteUpdates(Map<Serializable, Metacard> remoteUpdates)
+            throws FederationAdminException {
+        Subject systemSubject = security.getSystemSubject();
+        Map<String, Serializable> properties = new HashMap<>();
+        properties.put(SecurityConstants.SECURITY_SUBJECT, systemSubject);
+
+        List<Map.Entry<Serializable, Metacard>> updates = new ArrayList<>();
+        for (Map.Entry<Serializable, Metacard> mapEntry : remoteUpdates.entrySet()) {
+            updates.add(mapEntry);
+        }
+        //        updates.addAll(remoteUpdates.entrySet());
+
+        UpdateRequest updateRequest = new UpdateRequestImpl(updates,
+                RegistryObjectMetacardType.REGISTRY_ID,
+                properties,
+                null);
+
+        try {
+            catalogFramework.update(updateRequest);
+        } catch (IngestException | SourceUnavailableException e) {
+            String message = "Error writing remote updates.";
+            LOGGER.error("{} Metacard IDs: {}", message, remoteUpdates.keySet());
+            throw new FederationAdminException(message, e);
         }
     }
 
@@ -660,6 +839,16 @@ public class FederationAdminServiceImpl implements FederationAdminService {
         return ist;
     }
 
+    BundleContext getBundleContext() {
+        Bundle bundle = FrameworkUtil.getBundle(this.getClass());
+
+        if (bundle != null) {
+            return bundle.getBundleContext();
+        }
+
+        return null;
+    }
+
     public void setCatalogFramework(CatalogFramework catalogFramework) {
         this.catalogFramework = catalogFramework;
     }
@@ -689,5 +878,10 @@ public class FederationAdminServiceImpl implements FederationAdminService {
 
     public void setRegistryTransformer(InputTransformer inputTransformer) {
         this.registryTransformer = inputTransformer;
+    }
+
+    public void setPollerInterval(int pollerInterval) {
+        this.pollerInterval = pollerInterval;
+        LOGGER.info("=-=-=-=-=-=-=-=-=-=--= UPDATED =-=-=-=-=-=-=-=-=-=-");
     }
 }

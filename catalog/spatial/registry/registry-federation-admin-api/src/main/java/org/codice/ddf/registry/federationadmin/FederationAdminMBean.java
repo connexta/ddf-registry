@@ -13,17 +13,22 @@
  */
 package org.codice.ddf.registry.federationadmin;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
 import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
+
+import ddf.catalog.federation.FederationException;
+import ddf.catalog.source.SourceUnavailableException;
+import ddf.catalog.source.UnsupportedQueryException;
 
 /**
  * This is the external facing interface for the FederationAdminService. This is what should be used by the UI,
  * for example, to interact with the FederationAdminService.
  */
 public interface FederationAdminMBean {
-    String OBJECT_NAME = "ddf.catalog.registy:type=FederationAdminMBean";
+    String OBJECT_NAME = "org.codice.ddf.registry:type=FederationAdminMBean";
 
     /**
      * Create a local entry in the registry catalog for the given object map.
@@ -76,4 +81,31 @@ public interface FederationAdminMBean {
      * @throws FederationAdminException Passes exception thrown byFederationAdminServiceImpl
      */
     Map<String, Object> getLocalNodes() throws FederationAdminException;
+
+    /**
+     * @param servicePID - The PID of the registry which will have the status checked
+     * @return the status of a single registry as a boolean, true if available, false otherwise
+     */
+    boolean registryStatus(String servicePID);
+
+    /**
+     * @return the list of registry metatypes
+     */
+    List<Map<String, Object>> allRegistryInfo();
+
+    /**
+     * @return the list of registry metacards as RegistryObjectWebMaps
+     */
+    List<Map<String, Object>> allRegistryMetacards();
+
+    /**
+     * @param source       - The id of the source that will be published to or unpublished
+     *                     from the following destinations
+     * @param destinations - List of ids of catalog stores that the source will be
+     *                     published to or unpublished from
+     * @return the list of currently published locations after attempting to perform
+     * the publish/unpublishes
+     */
+    List<Serializable> updatePublications(String source, List<String> destinations)
+            throws UnsupportedQueryException, SourceUnavailableException, FederationException;
 }

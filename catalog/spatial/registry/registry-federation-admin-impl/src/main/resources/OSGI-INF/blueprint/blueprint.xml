@@ -17,15 +17,30 @@
 
     <bean id="federationAdmin" class="org.codice.ddf.registry.federationadmin.impl.FederationAdmin"
           destroy-method="destroy">
+        <argument ref="configurationAdmin"/>
+        <property name="catalogFramework" ref="catalogFramework"/>
+        <property name="catalogStoreMap" ref="catalogStoreMap"/>
         <property name="federationAdminService" ref="federationAdminService"/>
-        <property name="registryTransformer" ref="inputTransformer"/>
+        <property name="filterBuilder" ref="filterBuilder"/>
         <property name="parser" ref="xmlParser"/>
+        <property name="registryTransformer" ref="inputTransformer"/>
     </bean>
 
+    <bean id="catalogStoreMap" class="ddf.catalog.util.impl.DescribableServiceMap"/>
+
+    <reference id="catalogFramework" interface="ddf.catalog.CatalogFramework"/>
+    <reference id="configurationAdmin" interface="org.osgi.service.cm.ConfigurationAdmin"/>
     <reference id="federationAdminService"
                interface="org.codice.ddf.registry.federationadmin.service.FederationAdminService"/>
+    <reference id="filterBuilder" interface="ddf.catalog.filter.FilterBuilder"/>
     <reference id="inputTransformer" interface="ddf.catalog.transform.InputTransformer"
                filter="(id=rim:RegistryPackage)"/>
     <reference id="xmlParser" interface="org.codice.ddf.parser.Parser" filter="(id=xml)"/>
+
+    <reference-list id="catalogStore" interface="ddf.catalog.source.CatalogStore"
+                    availability="optional">
+        <reference-listener bind-method="bind"
+                            unbind-method="unbind" ref="catalogStoreMap"/>
+    </reference-list>
 
 </blueprint>

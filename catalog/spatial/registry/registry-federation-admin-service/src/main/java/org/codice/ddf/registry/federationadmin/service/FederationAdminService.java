@@ -201,10 +201,18 @@ public interface FederationAdminService {
             throws FederationAdminException;
 
     /**
-     * Get a list of registry objects
+     * Get a list of local registry objects
      *
      * @return List<RegistryPackageType>
      * @throws FederationAdminException If an exception is thrown trying to unmarshal the xml
      */
     List<RegistryPackageType> getLocalRegistryObjects() throws FederationAdminException;
+
+    /**
+     * Get a list of all registry objects
+     *
+     * @return List<RegistryPackageType>
+     * @throws FederationAdminException If an exception is thrown trying to unmarshal the xml
+     */
+    List<RegistryPackageType> getRegistryObjects() throws FederationAdminException;
 }

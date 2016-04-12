@@ -33,6 +33,11 @@
         <dependencies>
             <dependency>
                 <groupId>org.codice.ddf.registry</groupId>
+                <artifactId>registry-admin-remote-ui</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.codice.ddf.registry</groupId>
                 <artifactId>registry-api</artifactId>
                 <version>${project.version}</version>
             </dependency>

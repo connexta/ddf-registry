@@ -29,6 +29,10 @@
     <dependencies>
         <dependency>
             <groupId>org.codice.ddf.registry</groupId>
+            <artifactId>registry-admin-remote-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.codice.ddf.registry</groupId>
             <artifactId>registry-api</artifactId>
         </dependency>
         <dependency>

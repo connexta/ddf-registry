@@ -31,6 +31,7 @@
     <feature name="registry-app" install="manual" version="${project.version}"
              description="DDF Registry contains the base registry components, plugins, sources and interfaces needed for the registry to function">
         <feature prerequisite="true">spatial-app</feature>
+        <bundle>mvn:org.codice.ddf.registry/registry-admin-remote-ui/${project.version}</bundle>
         <bundle>mvn:org.codice.ddf.registry/registry-api/${project.version}</bundle>
         <bundle>mvn:org.codice.ddf.registry/registry-api-impl/${project.version}</bundle>
         <bundle>mvn:org.codice.ddf.registry/registry-schema-bindings/${project.version}</bundle>

@@ -16,8 +16,8 @@
            xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.0.0">
 
     <cm:managed-service-factory
-            id="ddf.services.schematron.SchematronValidationService"
-            factory-pid="ddf.services.schematron.SchematronValidationService"
+            id="ddf.schematron.SchematronValidation"
+            factory-pid="ddf.schematron.SchematronValidation"
             interface="ddf.catalog.validation.MetacardValidator">
         <cm:managed-component class="ddf.services.schematron.SchematronValidationService"
                               init-method="init" destroy-method="destroy">

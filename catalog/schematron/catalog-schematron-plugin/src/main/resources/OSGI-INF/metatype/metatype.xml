@@ -16,7 +16,7 @@
 
   <OCD description="Schematron Validators"
        name="Schematron Validation Services"
-       id="ddf.services.schematron.SchematronValidationService" >
+       id="ddf.schematron.SchematronValidation" >
 
     <AD name="Ruleset Name" id="id" required="true" type="String"
         description="Give this ruleset a name" />
@@ -29,8 +29,8 @@
 
   </OCD>
 
-  <Designate pid="ddf.services.schematron.SchematronValidationService" factoryPid="ddf.services.schematron.SchematronValidationService">
-    <Object ocdref="ddf.services.schematron.SchematronValidationService" />
+  <Designate pid="ddf.schematron.SchematronValidation" factoryPid="ddf.schematron.SchematronValidation">
+    <Object ocdref="ddf.schematron.SchematronValidation" />
   </Designate>
 
 </metatype:MetaData>

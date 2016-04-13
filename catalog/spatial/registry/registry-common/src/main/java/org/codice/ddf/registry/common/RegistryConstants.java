@@ -45,4 +45,6 @@ public class RegistryConstants {
     public static final String XML_LIVE_DATE_NAME = "liveDate";
 
     public static final String XML_LAST_UPDATED_NAME = "lastUpdated";
+
+    public static final String TRANSIENT_ATTRIBUTE_UPDATE = "transient.attribute.update";
 }

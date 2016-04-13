@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.management.ManagementFactory;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -488,8 +489,14 @@ public class FederationAdmin implements FederationAdminMBean {
 
             metacard.setAttribute(new AttributeImpl(RegistryObjectMetacardType.PUBLISHED_LOCATIONS,
                     updatedPublishedLocations));
+            Map<String, Serializable> properties = new HashMap<>();
+            properties.put(RegistryConstants.TRANSIENT_ATTRIBUTE_UPDATE, true);
+
+            List<Map.Entry<Serializable, Metacard>> updateList = new ArrayList<>();
+            updateList.add(new AbstractMap.SimpleEntry<>(metacard.getId(), metacard));
+
             try {
-                catalogFramework.update(new UpdateRequestImpl(metacard.getId(), metacard));
+                catalogFramework.update(new UpdateRequestImpl(updateList, Metacard.ID, properties));
             } catch (IngestException e) {
                 LOGGER.error("Unable to update metacard", e);
             } catch (SourceUnavailableException e) {

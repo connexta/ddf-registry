@@ -16,6 +16,7 @@ package org.codice.ddf.registry.identification;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -112,44 +113,48 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
         if (Requests.isLocal(input)) {
             List<Metacard> previousMetacards = operationTransaction.getPreviousStateMetacards();
 
-            HashMap<Metacard, Metacard> updateMetacards = new HashMap<>();
+            boolean transientAttributeUpdates = false;
+            if (input.getProperties()
+                    .get(RegistryConstants.TRANSIENT_ATTRIBUTE_UPDATE) != null) {
+                transientAttributeUpdates = true;
+            }
+
+            Map<String, Metacard> previousMetacardsMap = new HashMap<>();
+            for (Metacard metacard : previousMetacards) {
+                previousMetacardsMap.put(metacard.getId(), metacard);
+            }
+
             ArrayList<Metacard> metacardsToRemove = new ArrayList<>();
 
-            for (Map.Entry entry : input.getUpdates()) {
-                Metacard updateMetacard = (Metacard) entry.getValue();
-                for (Metacard existingMetacard : previousMetacards) {
+            for (Map.Entry<Serializable, Metacard> entry : input.getUpdates()) {
+                Metacard updateMetacard = entry.getValue();
+                Metacard existingMetacard = previousMetacardsMap.get(updateMetacard.getId());
+
+                if (existingMetacard != null) {
                     if (existingMetacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
                             .equals(updateMetacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID))) {
-                        if (updateMetacard.getModifiedDate()
-                                .before(existingMetacard.getModifiedDate())
-                                || updateMetacard.getModifiedDate()
-                                .equals(existingMetacard.getModifiedDate())) {
-                            metacardsToRemove.add(existingMetacard);
+
+                        if (transientAttributeUpdates || updateMetacard.getModifiedDate()
+                                .after(existingMetacard.getModifiedDate())) {
+                            for (String transientAttributeKey : RegistryObjectMetacardType.TRANSIENT_ATTRIBUTES) {
+                                Attribute transientAttribute = updateMetacard.getAttribute(
+                                        transientAttributeKey);
+                                if (transientAttribute == null) {
+                                    transientAttribute = existingMetacard.getAttribute(
+                                            transientAttributeKey);
+                                    if (transientAttribute != null) {
+                                        updateMetacard.setAttribute(transientAttribute);
+                                    }
+                                }
+                            }
                         } else {
-                            updateMetacards.put(updateMetacard, existingMetacard);
+                            metacardsToRemove.add(updateMetacard);
                         }
                     }
                 }
             }
-
             input.getUpdates()
                     .removeAll(metacardsToRemove);
-
-            for (Map.Entry<Metacard, Metacard> entry : updateMetacards.entrySet()) {
-                Metacard updateMetacard = (Metacard) entry.getKey();
-                Metacard existingMetacard = (Metacard) entry.getValue();
-
-                for (String transientAttributeKey : RegistryObjectMetacardType.TRANSIENT_ATTRIBUTES) {
-                    Attribute transientAttribute =
-                            updateMetacard.getAttribute(transientAttributeKey);
-                    if (transientAttribute == null) {
-                        transientAttribute = existingMetacard.getAttribute(transientAttributeKey);
-                        if (transientAttribute != null) {
-                            updateMetacard.setAttribute(transientAttribute);
-                        }
-                    }
-                }
-            }
 
         }
         return input;
@@ -271,9 +276,8 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                             registryObjectTypeJAXBElement,
                             outputStream);
 
-                    metacard.setAttribute(new AttributeImpl(Metacard.METADATA, new String(
-                            outputStream.toByteArray(),
-                            Charsets.UTF_8)));
+                    metacard.setAttribute(new AttributeImpl(Metacard.METADATA,
+                            new String(outputStream.toByteArray(), Charsets.UTF_8)));
                 }
             }
 

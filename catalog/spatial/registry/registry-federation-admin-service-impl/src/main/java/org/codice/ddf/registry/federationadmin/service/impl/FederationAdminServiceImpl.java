@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import javax.xml.bind.JAXBElement;
@@ -38,6 +39,7 @@ import javax.xml.bind.Marshaller;
 import javax.xml.datatype.DatatypeConstants;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.codice.ddf.configuration.SystemBaseUrl;
@@ -45,6 +47,7 @@ import org.codice.ddf.configuration.SystemInfo;
 import org.codice.ddf.parser.Parser;
 import org.codice.ddf.parser.ParserConfigurator;
 import org.codice.ddf.parser.ParserException;
+import org.codice.ddf.registry.api.RegistryStore;
 import org.codice.ddf.registry.common.RegistryConstants;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
@@ -55,6 +58,10 @@ import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory;
 import org.opengis.filter.sort.SortBy;
 import org.opengis.filter.sort.SortOrder;
+import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.FrameworkUtil;
+import org.osgi.framework.ServiceReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,6 +122,8 @@ public class FederationAdminServiceImpl implements FederationAdminService {
     private FilterBuilder filterBuilder;
 
     private final Security security;
+
+    private final Set<String> pollableSourceIds = ConcurrentHashMap.newKeySet();
 
     public FederationAdminServiceImpl() {
         this(Security.getInstance());
@@ -421,6 +430,15 @@ public class FederationAdminServiceImpl implements FederationAdminService {
         return registryEntries;
     }
 
+    @Override
+    public void refreshRegistrySubscriptions() throws FederationAdminException {
+        if (CollectionUtils.isEmpty(pollableSourceIds)) {
+            return;
+        }
+
+        addOrUpdateMetacardsForRemoteRegistries();
+    }
+
     public void init() {
         try {
             if (getRegistryIdentityMetacard() == null) {
@@ -428,6 +446,196 @@ public class FederationAdminServiceImpl implements FederationAdminService {
             }
         } catch (FederationAdminException e) {
             LOGGER.error("There was an error bringing up the Federation Admin Service.", e);
+        }
+    }
+
+    public void bindRegistryStore(ServiceReference serviceReference) {
+        BundleContext bundleContext = getBundleContext();
+
+        if (serviceReference != null && bundleContext != null) {
+            RegistryStore registryStore =
+                    (RegistryStore) bundleContext.getService(serviceReference);
+
+            if (registryStore.isPullAllowed()) {
+                pollableSourceIds.add(registryStore.getId());
+                try {
+                    addOrUpdateMetacardsForRemoteRegistries(Collections.singleton(registryStore.getId()));
+                } catch (FederationAdminException e) {
+                    LOGGER.warn(
+                            "Trying to access the registry store before it has finished initializing. Couldn't update registry for new registry store (ID: {}). No actions required.",
+                            registryStore.getId());
+                }
+            }
+        }
+    }
+
+    public void unbindRegistryStore(ServiceReference serviceReference) {
+        BundleContext bundleContext = getBundleContext();
+
+        if (serviceReference != null && bundleContext != null) {
+            RegistryStore registryStore =
+                    (RegistryStore) bundleContext.getService(serviceReference);
+
+            pollableSourceIds.remove(registryStore.getId());
+        }
+    }
+
+    private Map<String, Metacard> getRemoteRegistryMetacardsMap(Set<String> sourceIds)
+            throws FederationAdminException {
+        Map<String, Metacard> remoteRegistryMetacards = new HashMap<>();
+
+        Filter filter =
+                FILTER_FACTORY.and(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.CONTENT_TYPE),
+                        RegistryConstants.REGISTRY_NODE_METACARD_TYPE_NAME),
+                        FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.TAGS),
+                                RegistryConstants.REGISTRY_TAG));
+
+        Query query = new QueryImpl(filter);
+        QueryRequest queryRequest = new QueryRequestImpl(query, sourceIds);
+
+        Subject systemSubject = security.getSystemSubject();
+        queryRequest.getProperties()
+                .put(SecurityConstants.SECURITY_SUBJECT, systemSubject);
+
+        try {
+            QueryResponse queryResponse = catalogFramework.query(queryRequest);
+            List<Result> results = queryResponse.getResults();
+
+            List<Metacard> fullList = results.stream()
+                    .map(Result::getMetacard)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+
+            for (Metacard metacard : fullList) {
+                String registryId = metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
+                        .getValue()
+                        .toString();
+                if (remoteRegistryMetacards.containsKey(registryId)) {
+                    Metacard currentMetacard = remoteRegistryMetacards.get(registryId);
+                    if (currentMetacard.getModifiedDate()
+                            .before(metacard.getModifiedDate())) {
+                        remoteRegistryMetacards.put(registryId, metacard);
+                    }
+                } else {
+                    remoteRegistryMetacards.put(registryId, metacard);
+                }
+            }
+
+        } catch (UnsupportedQueryException | SourceUnavailableException | FederationException e) {
+            String message = "Error querying for subscribed metacards;";
+            LOGGER.error("{} For source ids: {}", message, sourceIds);
+            throw new FederationAdminException(message, e);
+        }
+
+        return remoteRegistryMetacards;
+    }
+
+    private Map<String, Metacard> getRegistryMetacardsMap() throws FederationAdminException {
+
+        Map<String, Metacard> registryMetacardsMap = new HashMap<>();
+        List<Metacard> registryMetacards = getRegistryMetacards();
+
+        for (Metacard metacard : registryMetacards) {
+            String registryId = metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
+                    .getValue()
+                    .toString();
+            registryMetacardsMap.put(registryId, metacard);
+        }
+
+        return registryMetacardsMap;
+    }
+
+    private void addOrUpdateMetacardsForRemoteRegistries() throws FederationAdminException {
+        addOrUpdateMetacardsForRemoteRegistries(pollableSourceIds);
+    }
+
+    private void addOrUpdateMetacardsForRemoteRegistries(Set<String> sourceIds)
+            throws FederationAdminException {
+        if (CollectionUtils.isEmpty(sourceIds)) {
+            return;
+        }
+
+        Map<String, Metacard> remoteRegistryMetacardsMap = getRemoteRegistryMetacardsMap(sourceIds);
+        Map<String, Metacard> registryMetacardsMap = getRegistryMetacardsMap();
+
+        Map<Serializable, Metacard> remoteMetacardsToUpdate = new HashMap<>();
+        List<Metacard> remoteMetacardsToCreate = new ArrayList<>();
+
+        for (Map.Entry<String, Metacard> remoteEntry : remoteRegistryMetacardsMap.entrySet()) {
+            if (registryMetacardsMap.containsKey(remoteEntry.getKey())) {
+                Metacard existingMetacard = registryMetacardsMap.get(remoteEntry.getKey());
+
+                Attribute localNode =
+                        existingMetacard.getAttribute(RegistryObjectMetacardType.REGISTRY_LOCAL_NODE);
+
+                if (localNode == null && remoteEntry.getValue()
+                        .getModifiedDate()
+                        .after(existingMetacard.getModifiedDate())) {
+                    remoteMetacardsToUpdate.put(remoteEntry.getKey(), remoteEntry.getValue());
+                }
+
+            } else {
+                remoteMetacardsToCreate.add(remoteEntry.getValue());
+            }
+        }
+
+        if (MapUtils.isNotEmpty(remoteMetacardsToUpdate)) {
+            writeRemoteUpdates(remoteMetacardsToUpdate);
+        }
+
+        if (CollectionUtils.isNotEmpty(remoteMetacardsToCreate)) {
+            createRemoteEntries(remoteMetacardsToCreate);
+        }
+    }
+
+    private void writeRemoteUpdates(Map<Serializable, Metacard> remoteMetacardsToUpdate)
+            throws FederationAdminException {
+        Subject systemSubject = security.getSystemSubject();
+        Map<String, Serializable> properties = new HashMap<>();
+        properties.put(SecurityConstants.SECURITY_SUBJECT, systemSubject);
+
+        List<Map.Entry<Serializable, Metacard>> updates = new ArrayList<>();
+        for (Map.Entry<Serializable, Metacard> mapEntry : remoteMetacardsToUpdate.entrySet()) {
+            updates.add(mapEntry);
+        }
+
+        UpdateRequest updateRequest = new UpdateRequestImpl(updates,
+                RegistryObjectMetacardType.REGISTRY_ID,
+                properties,
+                null);
+
+        try {
+            catalogFramework.update(updateRequest);
+        } catch (IngestException | SourceUnavailableException e) {
+            String message = "Error writing remote updates.";
+            LOGGER.error("{} Metacard IDs: {}", message, remoteMetacardsToUpdate.keySet());
+            throw new FederationAdminException(message, e);
+        }
+    }
+
+    private void createRemoteEntries(List<Metacard> remoteMetacardsToCreate)
+            throws FederationAdminException {
+        Subject systemSubject = security.getSystemSubject();
+        Map<String, Serializable> properties = new HashMap<>();
+        properties.put(SecurityConstants.SECURITY_SUBJECT, systemSubject);
+
+        CreateRequest createRequest = new CreateRequestImpl(remoteMetacardsToCreate, properties);
+
+        try {
+            catalogFramework.create(createRequest);
+        } catch (SourceUnavailableException | IngestException e) {
+            String message = "Error creating remote registry entries.";
+
+            List<String> registryIds = new ArrayList<>();
+            for (Metacard metacard : remoteMetacardsToCreate) {
+                String registryId = metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
+                        .getValue()
+                        .toString();
+                registryIds.add(registryId);
+            }
+
+            LOGGER.error("{} For registry Ids: {}", message, registryIds);
+            throw new FederationAdminException(message, e);
         }
     }
 
@@ -668,6 +876,16 @@ public class FederationAdminServiceImpl implements FederationAdminService {
         ist.setLocalizedString(Collections.singletonList(lst));
 
         return ist;
+    }
+
+    BundleContext getBundleContext() {
+        Bundle bundle = FrameworkUtil.getBundle(this.getClass());
+
+        if (bundle != null) {
+            return bundle.getBundleContext();
+        }
+
+        return null;
     }
 
     public void setCatalogFramework(CatalogFramework catalogFramework) {

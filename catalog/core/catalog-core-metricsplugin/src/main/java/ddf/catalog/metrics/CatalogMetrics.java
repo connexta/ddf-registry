@@ -249,7 +249,7 @@ public final class CatalogMetrics
             return false;
         } else {
             return (sourceIds.size() > 1) || (sourceIds.size() == 1 && !sourceIds.contains("")
-                    && !sourceIds.contains(null) && !sourceIds.contains(SystemInfo.getSiteName()));
+                    && !sourceIds.contains(SystemInfo.getSiteName()));
         }
     }
 }

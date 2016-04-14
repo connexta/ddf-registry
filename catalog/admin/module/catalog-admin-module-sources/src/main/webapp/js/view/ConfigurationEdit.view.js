@@ -121,7 +121,7 @@ define([
             _.each(this.collectionArray.models, function(model) {
                 values.push(model.get('value'));
             });
-            this.configuration.get('configurations').models[0].get('properties').set(this.model.get('id'), values);
+            this.configuration.get('properties').set(this.model.get('id'), values);
         },
         onRender: function() {
             this.listItems.show(new ConfigurationEditView.ConfigurationMultiValueCollection({
@@ -142,7 +142,16 @@ define([
     });
 
     ConfigurationEditView.ConfigurationItem = Marionette.ItemView.extend({
-        template: 'configuration.configurationItem'
+        template: 'configuration.configurationItem',
+        events: {
+            'change input': 'updateModel'
+        },
+        updateModel: function (e) {
+            var config = this.options.configuration;
+            config.get('properties').set(this.model.get('id'), e.target.value)
+            //this.model.set('value', e.target.value);
+            //debugger
+        }
     });
 
     ConfigurationEditView.ConfigurationCollection = Marionette.CollectionView.extend({

@@ -157,6 +157,9 @@ define([
     ConfigurationEditView.ConfigurationCollection = Marionette.CollectionView.extend({
         itemView: ConfigurationEditView.ConfigurationItem,
         initialize: function(options) {
+            console.log('check options');
+            console.log(options.configuration.toJSON());
+            console.log(this.options.configuration.toJSON());
             this.service = options.service;
             this.listenTo(wreqr.vent, 'poller:start', this.render);
         },

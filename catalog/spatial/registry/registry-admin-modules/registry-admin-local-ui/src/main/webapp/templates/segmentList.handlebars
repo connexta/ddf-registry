@@ -1,0 +1,16 @@
+{{#if showHeader}}
+<div class="segment-header">
+    <table>
+        <tr>
+            <td>
+                <label class="nested-label{{nestedLevel}}">{{segmentName}}</label>
+            </td>
+            {{#if multiValued}}
+                <td>
+                    <a href="#" class="add-segment fa fa-plus-square fa-lg plus-button"></a>
+                </td>
+            {{/if}}
+        </tr>
+    </table>
+</div>
+{{/if}}

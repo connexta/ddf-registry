@@ -19,6 +19,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.management.ManagementFactory;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +41,7 @@ import javax.management.ObjectName;
 import javax.management.StandardMBean;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Marshaller;
+import javax.xml.datatype.DatatypeConstants;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
@@ -94,9 +98,12 @@ import ddf.catalog.source.SourceUnavailableException;
 import ddf.catalog.source.UnsupportedQueryException;
 import ddf.catalog.transform.CatalogTransformerException;
 import ddf.catalog.transform.InputTransformer;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.ExtrinsicObjectType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.ObjectFactory;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryObjectType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryPackageType;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.SlotType1;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.ValueListType;
 
 public class FederationAdmin implements FederationAdminMBean {
 
@@ -125,6 +132,8 @@ public class FederationAdmin implements FederationAdminMBean {
     private static final String MAP_ENTRY_CONFIGURATIONS = "configurations";
 
     private static final String DISABLED = "_disabled";
+
+    private static final String TEMP_REGISTRY_ID = "temp-id";
 
     private static final String REGISTRY_FILTER =
             "(|(service.factoryPid=*Registry*Store*)(service.factoryPid=*registry*store*))";
@@ -182,11 +191,13 @@ public class FederationAdmin implements FederationAdminMBean {
         }
 
         if (!registryPackage.isSetId()) {
-            String registryPackageId = UUID.randomUUID()
+            String registryPackageId = RegistryConstants.GUID_PREFIX + UUID.randomUUID()
                     .toString()
                     .replaceAll("-", "");
             registryPackage.setId(registryPackageId);
         }
+
+        updateDateFields(registryPackage);
 
         Metacard metacard = getRegistryMetacardFromRegistryPackage(registryPackage);
         metacard.setAttribute(new AttributeImpl(RegistryObjectMetacardType.REGISTRY_LOCAL_NODE,
@@ -232,6 +243,8 @@ public class FederationAdmin implements FederationAdminMBean {
             LOGGER.error("{} Registry Map: {}", message, registryObjectMap);
             throw new FederationAdminException(message);
         }
+
+        updateDateFields(registryPackage);
 
         List<Metacard> existingMetacards =
                 federationAdminService.getLocalRegistryMetacardsByRegistryIds(Collections.singletonList(
@@ -633,6 +646,59 @@ public class FederationAdmin implements FederationAdminMBean {
             }
         }
         return transientValuesMap;
+    }
+
+    private void updateDateFields(RegistryPackageType rpt) {
+
+        ExtrinsicObjectType nodeInfo = null;
+        for (JAXBElement identifiable : rpt.getRegistryObjectList()
+                .getIdentifiable()) {
+            RegistryObjectType registryObject = (RegistryObjectType) identifiable.getValue();
+
+            if (registryObject instanceof ExtrinsicObjectType
+                    && RegistryConstants.REGISTRY_NODE_OBJECT_TYPE.equals(registryObject.getObjectType())) {
+                nodeInfo = (ExtrinsicObjectType) registryObject;
+                break;
+            }
+        }
+        if (nodeInfo != null) {
+            boolean liveDateFound = false;
+            boolean lastUpdatedFound = false;
+
+            OffsetDateTime now = OffsetDateTime.now(ZoneId.of(ZoneOffset.UTC.toString()));
+            String rightNow = now.toString();
+            ValueListType valueList = RIM_FACTORY.createValueListType();
+            valueList.getValue()
+                    .add(rightNow);
+            for (SlotType1 slot : nodeInfo.getSlot()) {
+                if (slot.getName()
+                        .equals(RegistryConstants.XML_LIVE_DATE_NAME)) {
+                    liveDateFound = true;
+                } else if (slot.getName()
+                        .equals(RegistryConstants.XML_LAST_UPDATED_NAME)) {
+                    slot.setValueList(RIM_FACTORY.createValueList(valueList));
+                    lastUpdatedFound = true;
+                }
+            }
+
+            if (!liveDateFound) {
+                SlotType1 liveDate = RIM_FACTORY.createSlotType1();
+                liveDate.setValueList(RIM_FACTORY.createValueList(valueList));
+                liveDate.setSlotType(DatatypeConstants.DATETIME.toString());
+                liveDate.setName(RegistryConstants.XML_LIVE_DATE_NAME);
+                nodeInfo.getSlot()
+                        .add(liveDate);
+            }
+
+            if (!lastUpdatedFound) {
+                SlotType1 lastUpdated = RIM_FACTORY.createSlotType1();
+                lastUpdated.setValueList(RIM_FACTORY.createValueList(valueList));
+                lastUpdated.setSlotType(DatatypeConstants.DATETIME.toString());
+                lastUpdated.setName(RegistryConstants.XML_LAST_UPDATED_NAME);
+                nodeInfo.getSlot()
+                        .add(lastUpdated);
+            }
+        }
     }
 
     private void configureMBean() {

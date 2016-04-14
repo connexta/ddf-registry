@@ -1563,8 +1563,14 @@ public class RegistryPackageWebConverter {
         if (!map.containsKey(key)) {
             return null;
         }
+        if (map.get(key) instanceof String) {
+            return Collections.singletonList((String) map.get(key));
+        } else if (map.get(key) instanceof List) {
+            return (List<String>) map.get(key);
+        } else {
+            return null;
+        }
 
-        return (List<String>) map.get(key);
     }
 
     private static void addSlotMapToList(SlotType1 slot, List<Map<String, Object>> slotList) {

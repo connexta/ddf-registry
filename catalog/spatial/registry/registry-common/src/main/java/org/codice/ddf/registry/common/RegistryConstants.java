@@ -47,4 +47,7 @@ public class RegistryConstants {
     public static final String XML_LAST_UPDATED_NAME = "lastUpdated";
 
     public static final String TRANSIENT_ATTRIBUTE_UPDATE = "transient.attribute.update";
+
+    public static final String GUID_PREFIX = "urn:uuid:";
+
 }

@@ -204,10 +204,14 @@ public class FederationAdminServiceImpl implements FederationAdminService {
             throw new FederationAdminException(
                     "Error updating local registry entry. Metacard Id is not set.");
         }
+        List<Filter> filters = new ArrayList<>();
+        filters.add(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.ID),
+                updateMetacard.getId()));
+        filters.add(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.TAGS),
+                RegistryConstants.REGISTRY_TAG));
 
-        Filter filter = FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.ID),
-                updateMetacard.getId());
-        List<Metacard> existingMetacards = getRegistryMetacardsByFilter(filter);
+
+        List<Metacard> existingMetacards = getRegistryMetacardsByFilter(FILTER_FACTORY.and(filters));
 
         if (CollectionUtils.isEmpty(existingMetacards)) {
             String message = "Error updating local registry entry. Registry metacard not found.";
@@ -641,7 +645,7 @@ public class FederationAdminServiceImpl implements FederationAdminService {
 
     private void createIdentityNode() throws FederationAdminException {
 
-        String registryPackageId = UUID.randomUUID()
+        String registryPackageId = RegistryConstants.GUID_PREFIX + UUID.randomUUID()
                 .toString()
                 .replaceAll("-", "");
         RegistryPackageType registryPackage = RIM_FACTORY.createRegistryPackageType();
@@ -651,7 +655,7 @@ public class FederationAdminServiceImpl implements FederationAdminService {
         ExtrinsicObjectType extrinsicObject = RIM_FACTORY.createExtrinsicObjectType();
         extrinsicObject.setObjectType(RegistryConstants.REGISTRY_NODE_OBJECT_TYPE);
 
-        String extrinsicObjectId = UUID.randomUUID()
+        String extrinsicObjectId = RegistryConstants.GUID_PREFIX + UUID.randomUUID()
                 .toString()
                 .replaceAll("-", "");
         extrinsicObject.setId(extrinsicObjectId);

@@ -1,0 +1,80 @@
+{{!--
+/**
+ * Copyright (c) Codice Foundation
+ *
+ * This is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either
+ * version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Lesser General Public License for more details. A copy of the GNU Lesser General Public License is distributed along with this program and can be found at
+ * <http://www.gnu.org/licenses/lgpl.html>.
+ *
+ **/
+ --}}
+<div class="node-field">
+    <label>{{name}}</label>
+    {{#unless custom}}
+        <a href='#' class='description' data-title='{{key}}'>
+            <i class='fa fa-question-circle fa-lg'></i>
+        </a>
+    {{/unless}}
+    {{#if multiValued}}
+        <a href="#" class="add-value fa fa-plus-square fa-lg plus-button"></a>
+    {{/if}}
+    {{#if custom}}
+        <a href="#" class="remove-field fa fa-minus-square fa-lg minus-button"></a>
+
+    {{/if}}
+    <div class="input-area">
+            {{#is type "string"}}
+                {{#if multiValued}}
+                    <table>
+                    {{#each value}}
+                        <tr>
+                            <td>
+                                <input type="text" name="value{{@index}}" value="{{this}}"/>
+                            </td>
+                            <td>
+                                <a href="#" name="{{@index}}" class="remove-value fa fa-minus-square fa-lg minus-button"></a>
+                            </td>
+                        </tr>
+                    {{/each}}
+                    </table>
+                {{else}}
+                    <input type="text" name="value" value="{{value}}"/>
+                {{/if}}
+            {{/is}}
+            {{#is type "number"}}
+                <input type="number" name="value" value="{{value}}"/>
+            {{/is}}
+            {{#is type "boolean"}}
+                <input type="checkbox" name="value" value="{{value}}"/>
+            {{/is}}
+            {{#is type "date"}}
+                <input type="date" name="valueDate" value="{{valueDate}}"/>
+                <input type="time" name="valueTime" value="{{valueTime}}"/>
+            {{/is}}
+            {{#is type "time"}}
+                <input type="datetime" name="value" value="{{value}}"/>
+            {{/is}}
+            {{#is type "point"}}
+                <div class="coords">
+                    <label>Lat:</label><input type="number" name="valueLat" value="{{valueLat}}"/>
+                    <label>Lon:</label><input type="number" name="valueLon" value="{{valueLon}}"/>
+                </div>
+            {{/is}}
+            {{#is type "bounds"}}
+                <div class="coords">
+                    <label>Upper Corner</label>
+                    </br>
+                    <label>Lat:</label><input type="number" name="valueUpperLat" value="{{valueUpperLat}}"/>
+                    <label>Lon:</label><input type="number" name="valueUpperLon" value="{{valueUpperLon}}"/>
+                    </br>
+                    <label>Lower Corner</label>
+                    </br>
+                    <label>Lat:</label><input type="number" name="valueLowerLat" value="{{valueLowerLat}}"/>
+                    <label>Lon:</label><input type="number" name="valueLowerLon" value="{{valueLowerLon}}"/>
+                </div>
+            {{/is}}
+    </div>
+</div>

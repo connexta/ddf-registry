@@ -438,7 +438,9 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                         Hashtable<String, Object> serviceConfigurationProperties =
                                 new Hashtable<>();
 
-                        if (slotMap.get(BINDING_TYPE) == null) {
+                        if (slotMap.get(BINDING_TYPE) == null || CollectionUtils.isEmpty(
+                                getSlotStringAttributes(slotMap.get(BINDING_TYPE)
+                                        .get(0)))) {
                             continue;
                         }
                         String factoryPid = getSlotStringAttributes(slotMap.get(BINDING_TYPE)

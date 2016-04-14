@@ -1,0 +1,63 @@
+{{!--
+/**
+ * Copyright (c) Codice Foundation
+ *
+ * This is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either
+ * version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Lesser General Public License for more details. A copy of the GNU Lesser General Public License is distributed along with this program and can be found at
+ * <http://www.gnu.org/licenses/lgpl.html>.
+ *
+ **/
+ --}}
+<div class="segment">
+    {{#if editableSegment}}
+        <div data-toggle="collapse" data-target="#{{simpleId}}" class="clickable">
+            <label class="nested-label{{nestedLevel}}">{{title}}</label>
+            <a href="#" class="remove-segment fa fa-minus-square fa-lg minus-button"/>
+        </div>
+    {{/if}}
+    <div id="{{simpleId}}" class="segment-content {{#if editableSegment}}collapse{{/if}}">
+        {{#if showFields}}
+            <table class='table align-middle'>
+                <tbody class="form-fields">
+
+                </tbody>
+            </table>
+        {{/if}}
+        <table class='table align-middle'>
+            <tbody class="form-segments">
+
+            </tbody>
+        </table>
+
+        {{#if customizable}}
+            <div class="customizable-fields">
+                <div class="customizable-header">
+                    <label class="nested-label2">Custom Fields</label>
+                    <input type="text" class="field-name-{{simpleId}}" name="customName"
+                           placeholder="Field Name">
+                    <select class="field-type-selector-{{simpleId}}">
+                        <option value="string">string</option>
+                        <option value="boolean">boolean</option>
+                        <option value="number">number</option>
+                        <option value="date">date</option>
+                        <option value="point">point</option>
+                        <!--<option value="bounds">bounds</option>-->
+                    </select>
+                    <a href="#" class="add-custom-field fa fa-plus-square fa-lg plus-button"></a>
+                </div>
+                <table class='table align-middle'>
+                    <tbody id="custom-fields-{{simpleId}}" class="custom-fields">
+
+                    </tbody>
+                </table>
+            </div>
+        {{/if}}
+
+        {{#if showAssociations}}
+            <div id="associations-{{simpleId}}"/>
+        {{/if}}
+    </div>
+</div>

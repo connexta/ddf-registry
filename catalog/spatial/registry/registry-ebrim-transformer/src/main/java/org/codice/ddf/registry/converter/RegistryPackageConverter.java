@@ -79,6 +79,7 @@ public class RegistryPackageConverter {
     static {
         METACARD_XML_NAME_MAP = new HashMap<>();
         METACARD_XML_NAME_MAP.put(RegistryObjectMetacardType.LIVE_DATE, "liveDate");
+        METACARD_XML_NAME_MAP.put(Metacard.CREATED, "liveDate");
         METACARD_XML_NAME_MAP.put(RegistryObjectMetacardType.DATA_START_DATE, "dataStartDate");
         METACARD_XML_NAME_MAP.put(RegistryObjectMetacardType.DATA_END_DATE, "dataEndDate");
         METACARD_XML_NAME_MAP.put(Metacard.MODIFIED, "lastUpdated");
@@ -318,17 +319,6 @@ public class RegistryPackageConverter {
                 }
             }
 
-            if (CollectionUtils.isEmpty(bindingTypes)) {
-                String message =
-                        "Service Binding must contain at least one binding type. Service ID: "
-                                + service.getId();
-                if (binding.isSetId()) {
-                    message += ", Service binding ID: " + binding.getId();
-                }
-
-                throw new RegistryConversionException(message);
-            }
-
             serviceBindingTypes.addAll(bindingTypes);
             serviceBindings.addAll(bindings);
         }
@@ -344,6 +334,7 @@ public class RegistryPackageConverter {
             Map<String, SlotType1> slotMap = getSlotMap(registryObject.getSlot());
 
             setAttributeFromMap(RegistryObjectMetacardType.LIVE_DATE, slotMap, metacard);
+            setAttributeFromMap(Metacard.CREATED, slotMap, metacard);
             setAttributeFromMap(RegistryObjectMetacardType.DATA_START_DATE, slotMap, metacard);
             setAttributeFromMap(RegistryObjectMetacardType.DATA_END_DATE, slotMap, metacard);
             setAttributeFromMap(Metacard.MODIFIED, slotMap, metacard);

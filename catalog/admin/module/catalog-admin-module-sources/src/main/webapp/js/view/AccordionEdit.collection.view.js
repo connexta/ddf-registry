@@ -106,7 +106,7 @@ var AccordionEditView = {};
             this.configuration = options.configuration;
             this.collectionArray = new Backbone.Collection();
             this.listenTo(wreqr.vent, 'refresh', this.updateValues);
-            this.listenTo(wreqr.vent, 'beforesave', this.saveValues);
+            //this.listenTo(wreqr.vent, 'beforesave', this.saveValues);
         },
         updateValues: function() {
             var csvVal, view = this;

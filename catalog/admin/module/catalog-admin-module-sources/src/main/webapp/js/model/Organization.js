@@ -32,11 +32,10 @@ function (Backbone) {
             this.emailAddress = org.emailAddress;
         },
 
-            initialize: function(pid) {
-                this.url += pid;
-
-            }
-        });
+        initialize: function(pid) {
+            this.url += pid;
+        }
+    });
 
     return Organization;
 });

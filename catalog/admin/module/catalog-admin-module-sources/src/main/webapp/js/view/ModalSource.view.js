@@ -539,7 +539,7 @@ define([
                     contentView: new ConfigurationEdit.ConfigurationCollection({
                                                          collection: someCollection,
                                                          service: service,
-                                                         configuration: configuration})
+                                                         configuration: config})
                });
             }.bind(this));
 

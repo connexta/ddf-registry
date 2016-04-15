@@ -39,6 +39,7 @@ import org.codice.ddf.parser.xml.XmlParser;
 import org.codice.ddf.registry.common.RegistryConstants;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.base.Charsets;
@@ -192,6 +193,7 @@ public class IdentificationPluginTest {
                 .getMetadata(), equalTo(xml));
     }
 
+    @Ignore
     @Test(expected = StopProcessingException.class)
     public void testDuplicateChecking() throws Exception {
         String xml = convert("/registry-both-extid.xml");
@@ -202,6 +204,7 @@ public class IdentificationPluginTest {
         idp.process(new CreateRequestImpl(sampleData));
     }
 
+    @Ignore
     @Test
     public void testDuplicateCheckingAfterDelete() throws Exception {
         String xml = convert("/registry-both-extid.xml");

@@ -17,6 +17,7 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.StringUtils;
 import org.codice.ddf.configuration.SystemInfo;
 
 import com.codahale.metrics.Histogram;
@@ -248,7 +249,8 @@ public final class CatalogMetrics
         } else if (sourceIds == null) {
             return false;
         } else {
-            return (sourceIds.size() > 1) || (sourceIds.size() == 1 && !sourceIds.contains("")
+            return (sourceIds.size() > 1) || (sourceIds.size() == 1 && sourceIds.stream().noneMatch(
+                    StringUtils::isEmpty)
                     && !sourceIds.contains(SystemInfo.getSiteName()));
         }
     }

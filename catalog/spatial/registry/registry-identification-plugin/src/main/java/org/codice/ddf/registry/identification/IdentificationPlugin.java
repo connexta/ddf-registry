@@ -15,11 +15,13 @@ package org.codice.ddf.registry.identification;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,6 +38,9 @@ import org.codice.ddf.registry.common.RegistryConstants;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminService;
+import org.osgi.framework.InvalidSyntaxException;
+import org.osgi.service.cm.Configuration;
+import org.osgi.service.cm.ConfigurationAdmin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +63,13 @@ import ddf.catalog.plugin.PreIngestPlugin;
 import ddf.catalog.plugin.StopProcessingException;
 import ddf.catalog.util.impl.Requests;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.ExternalIdentifierType;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryObjectListType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryObjectType;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryPackageType;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.ServiceBindingType;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.ServiceType;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.SlotType1;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.ValueListType;
 
 /**
  * IdentificationPlugin is a Pre/PostIngestPlugin that assigns a localID when a metacard is added to the
@@ -75,9 +86,20 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
 
     private ParserConfigurator unmarshalConfigurator;
 
+    private ConfigurationAdmin configurationAdmin;
+
     private Set<String> registryIds = ConcurrentHashMap.newKeySet();
 
     private static final Logger LOGGER = LoggerFactory.getLogger(IdentificationPlugin.class);
+
+    private static final String BINDING_TYPE = "bindingType";
+
+    private static final String DISABLED_CONFIGURATION_SUFFIX = "_disabled";
+
+    private static final String ID = "id";
+
+    private static final String SHORTNAME = "shortname";
+
 
     @Override
     public CreateRequest process(CreateRequest input)
@@ -174,6 +196,12 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                 if (metacard.getTags()
                         .contains(RegistryConstants.REGISTRY_TAG)) {
                     registryIds.add(getRegistryId(metacard));
+                    try {
+                        updateRegistryConfigurations(metacard);
+                    } catch (IOException | InvalidSyntaxException | ParserException e) {
+                        LOGGER.error(
+                                "Unable to update registry configurations, metacard still ingested");
+                    }
                 }
             }
         }
@@ -276,8 +304,9 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                             registryObjectTypeJAXBElement,
                             outputStream);
 
-                    metacard.setAttribute(new AttributeImpl(Metacard.METADATA,
-                            new String(outputStream.toByteArray(), Charsets.UTF_8)));
+                    metacard.setAttribute(new AttributeImpl(Metacard.METADATA, new String(
+                            outputStream.toByteArray(),
+                            Charsets.UTF_8)));
                 }
             }
 
@@ -306,6 +335,10 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
         this.federationAdmin = federationAdmin;
     }
 
+    public void setConfigurationAdmin(ConfigurationAdmin configurationAdmin) {
+        this.configurationAdmin = configurationAdmin;
+    }
+
     public void setParser(Parser parser) {
         List<String> contextPath = Arrays.asList(RegistryObjectType.class.getPackage()
                         .getName(),
@@ -319,5 +352,108 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
         this.marshalConfigurator = parser.configureParser(contextPath, classLoader);
         this.marshalConfigurator.addProperty(Marshaller.JAXB_FRAGMENT, true);
         this.parser = parser;
+    }
+
+    private void updateRegistryConfigurations(Metacard metacard)
+            throws IOException, InvalidSyntaxException, ParserException {
+        String metadata = metacard.getMetadata();
+        InputStream inputStream = new ByteArrayInputStream(metadata.getBytes(Charsets.UTF_8));
+
+        JAXBElement<RegistryObjectType> registryObjectTypeJAXBElement = parser.unmarshal(
+                unmarshalConfigurator,
+                JAXBElement.class,
+                inputStream);
+
+        if (registryObjectTypeJAXBElement != null) {
+            RegistryPackageType registryPackageType =
+                    (RegistryPackageType) registryObjectTypeJAXBElement.getValue();
+            RegistryObjectListType registryObjectListType =
+                    registryPackageType.getRegistryObjectList();
+            for (JAXBElement id : registryObjectListType.getIdentifiable()) {
+                RegistryObjectType registryObject = (RegistryObjectType) id.getValue();
+                if (registryObject instanceof ServiceType
+                        && RegistryConstants.REGISTRY_SERVICE_OBJECT_TYPE.equals(registryObject.getObjectType())) {
+                    ServiceType service = (ServiceType) registryObject;
+
+                    for (ServiceBindingType binding : service.getServiceBinding()) {
+                        Map<String, List<SlotType1>> slotMap =
+                                getSlotMapWithMultipleValues(binding.getSlot());
+
+                        Hashtable<String, Object> serviceConfigurationProperties =
+                                new Hashtable<>();
+
+                        if(slotMap.get(BINDING_TYPE) == null) {
+                            continue;
+                        }
+                        String factoryPid = getSlotStringAttributes(slotMap.get(BINDING_TYPE)
+                                .get(0)).get(0);
+                        factoryPid = factoryPid.concat(DISABLED_CONFIGURATION_SUFFIX);
+
+                        for (Map.Entry slotValue : slotMap.entrySet()) {
+                            String key =
+                                    ((SlotType1) (((ArrayList) slotValue.getValue()).get(0))).getName();
+                            String value =
+                                    ((SlotType1) (((ArrayList) slotValue.getValue()).get(0))).getValueList()
+                                            .getValue()
+                                            .getValue()
+                                            .get(0);
+                            serviceConfigurationProperties.put(key, value);
+                        }
+                        serviceConfigurationProperties.put(ID, metacard.getTitle());
+                        serviceConfigurationProperties.put(SHORTNAME, metacard.getTitle());
+                        serviceConfigurationProperties.put(RegistryObjectMetacardType.REGISTRY_ID,
+                                metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
+                                        .toString());
+
+                        Configuration configuration = configurationAdmin.createFactoryConfiguration(
+                                factoryPid,
+                                null);
+                        configuration.update(serviceConfigurationProperties);
+                    }
+
+                }
+            }
+        }
+
+    }
+
+    private Map<String, SlotType1> getSlotMap(List<SlotType1> slots) {
+        Map<String, SlotType1> slotMap = new HashMap<>();
+
+        for (SlotType1 slot : slots) {
+            slotMap.put(slot.getName(), slot);
+        }
+        return slotMap;
+    }
+
+    private Map<String, List<SlotType1>> getSlotMapWithMultipleValues(List<SlotType1> slots) {
+        Map<String, List<SlotType1>> slotMap = new HashMap<>();
+
+        for (SlotType1 slot : slots) {
+            if (!slotMap.containsKey(slot.getName())) {
+                List<SlotType1> slotList = new ArrayList<>();
+                slotList.add(slot);
+
+                slotMap.put(slot.getName(), slotList);
+            } else {
+                slotMap.get(slot.getName())
+                        .add(slot);
+            }
+        }
+        return slotMap;
+    }
+
+    private static List<String> getSlotStringAttributes(SlotType1 slot) {
+        List<String> slotAttributes = new ArrayList<>();
+
+        if (slot.isSetValueList()) {
+            ValueListType valueList = slot.getValueList()
+                    .getValue();
+            if (valueList.isSetValue()) {
+                slotAttributes = valueList.getValue();
+            }
+        }
+
+        return slotAttributes;
     }
 }

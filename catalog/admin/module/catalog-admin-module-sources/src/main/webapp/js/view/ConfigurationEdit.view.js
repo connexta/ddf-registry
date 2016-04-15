@@ -146,11 +146,13 @@ define([
         events: {
             'change input': 'updateModel'
         },
+        serializeData: function () {
+            var value = this.options.configuration.get('properties').get(this.model.get('id'));
+            return _.extend(this.model.toJSON(), { defaultValue: value || this.model.get('defaultValue') });
+        },
         updateModel: function (e) {
             var config = this.options.configuration;
-            config.get('properties').set(this.model.get('id'), e.target.value)
-            //this.model.set('value', e.target.value);
-            //debugger
+            config.get('properties').set(this.model.get('id'), e.target.value);
         }
     });
 

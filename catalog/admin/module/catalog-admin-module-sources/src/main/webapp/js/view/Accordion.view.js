@@ -33,12 +33,10 @@ define([
             'click .accordion-title': 'toggle'
         },
         initialize: function(){
-            console.log(this.model);
         },
         toggle: function(){
             this.$el.find('.accordion-content').toggleClass('show');
             this.$el.find(".fa-chevron-down, .fa-chevron-up").toggleClass( 'fa-chevron-down fa-chevron-up');
-            //this.$el.find('.chevronUp').toggleClass('show');
         },
         onRender: function(){
             this.accordionContent.show(this.model.get('contentView'));

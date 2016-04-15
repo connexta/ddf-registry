@@ -336,6 +336,24 @@ define(function (require) {
         ]
     });
 
+        Service.RegistryService = Backbone.AssociatedModel.extend({
+            url: "/jolokia/exec/org.codice.ddf.registry:type=FederationAdminMBean/allRegistryInfo"
+        });
+
+
+        Service.RegistryMetacards = Backbone.AssociatedModel.extend({
+            url: "/jolokia/exec/org.codice.ddf.registry:type=FederationAdminMBean/allRegistryMetacards",
+            relations: [
+                {
+                    type: Backbone.Many,
+                    key: 'value',
+                    relatedModel: Service.Model,
+                    includeInJSON: false
+                }
+            ]
+        });
+
+
     return Service;
 
 });

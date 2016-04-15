@@ -212,12 +212,21 @@ function (wreqr, Service, Backbone, _, poller, Status) {
                     initialModel.addDisabledConfiguration(config);
                 });
             }
+            initialModel.set('registryId', this.getRegistryIdFromConfigurations(initialModel) );
             return initialModel;
+        },
+        getRegistryIdFromConfigurations: function(model){
+            var configuration = model.get('currentConfiguration');
+            if(!configuration && !_.isEmpty(model.get('disableConfigurations'))){
+                configuration = model.get('disabledConfigurations')[0];
+            }
+            if(configuration){
+                return configuration.get('properties').get('registry-id');
+            }
         },
         isSourceConfiguration: function(configuration) {
             return (configuration.get('fpid') && configuration.get('id') && configuration.get('fpid').indexOf('Source') !== -1);
         }
     });
     return Source;
-
 });

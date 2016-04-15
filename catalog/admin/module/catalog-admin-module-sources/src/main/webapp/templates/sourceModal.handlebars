@@ -45,17 +45,16 @@
         </div>
         <div class="modal-accordions">
         </div>
-        <button class="add-configuration">Add Configuration</button>
-        <select class="form-control input-sm addConfigSelect"></select>
+        {{#if isRegistry}}
         <div id="checkboxes">
             <label>Publish node to the following registries:</label>
             <ul>
-                <li><input type="checkbox"> checkbox 1</li>
-                <li><input type="checkbox"> checkbox 2</li>
-                <li><input type="checkbox"> checkbox 3</li>
-                <li><input type="checkbox"> checkbox 4</li>
+                {{#each availableRegistries}}
+                    <li><input type="checkbox"> {{this}}</li>
+                {{/each}}
             </ul>
         </div>
+        {{/if}}
         <div class="modal-footer">
             <div class="btn-group">
                 {{#is mode 'edit'}}

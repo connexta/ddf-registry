@@ -24,7 +24,6 @@ define([
     AccordionCollectionView = Marionette.CollectionView.extend({
         itemView: AccordionView,
         initialize: function(){
-            console.log(this.models);
             this.render();
         },
         onRender: function(){

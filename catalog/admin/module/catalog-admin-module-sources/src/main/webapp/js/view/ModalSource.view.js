@@ -20,7 +20,6 @@ define([
         'backbone',
         'js/model/Accordion.collection.js',
         'js/view/AccordionCollectionView.js',
-        'js/view/AccordionEdit.collection.view.js',
         'js/view/ConfigurationEdit.view.js',
         'js/model/Service.js',
         'js/view/Utils.js',
@@ -34,12 +33,7 @@ define([
         'text!templates/optionLabelType.hbs',
         'text!templates/configurationDropdown.hbs'
 
-
-
-//                 'js/view/AccordionEdit.collection.view.js'
-
-
-], function (ich,Marionette,Backbone,AccordionCollection,AccordionCollectionView,AccordionEdit,ConfigurationEdit,Service,Utils,wreqr,_,$,sourceModal,optionListType,textType, sourceOrganization, optionLabelType, configurationDropdown) {
+], function (ich,Marionette,Backbone,AccordionCollection,AccordionCollectionView,ConfigurationEdit,Service,Utils,wreqr,_,$,sourceModal,optionListType,textType, sourceOrganization, optionLabelType, configurationDropdown) {
 
     if (!ich.sourceOrganization) {
         ich.addTemplate('sourceOrganization', sourceOrganization);
@@ -65,7 +59,7 @@ define([
     ModalSource.View = Marionette.Layout.extend({
         template: 'sourceModal',
         className: 'modal',
-        /** q
+        /**
          * Button events, right now there's a submit button
          * I do not know where to go with the cancel button.
          */
@@ -192,16 +186,8 @@ define([
          */
         submitData: function() {
             wreqr.vent.trigger('beforesave');
-            //AT THIS POINT, SECURITY ZTTRIBUTES HAVE NOT BEEN POPULATED
             var view = this;
             var service = view.model.get('editConfig');
-//            var theName = service.get('name');
-//            var someCon =              var service = someIds[0].get('service').get('configurations').models[0].get('service');editconfig this.findConfigFromId(theName);
-//              var someIds = this.getConfigIds();
-//              var service = someIds[0];
-//                            var service = someIds[0].get('service').get('configurations').models[0].get('service');
-//AT THIS POINT, SECURITY ATTRIBUTES HAS BEEN POPULATED
-
             if (service) {
                 var fpid = service.get("fpid");
                 var idx = fpid.indexOf("_disabled");
@@ -457,9 +443,7 @@ define([
         renderDetails: function (configuration) {
             var service = configuration.get('service');
             if (!_.isUndefined(service)) {
-                var toDisplay = service.get('metatype').filter(function (mt) {
-                    return !_.contains(['shortname', 'id'], mt.get('id'));
-                });
+
 //==? POSSIBLE BUG
         if(this.mode === 'edit'){
         var OrganizationSource = {};
@@ -490,48 +474,25 @@ define([
         var orgViewInstance = new OrganizationSource.View({model:someOrg});
         this.organization.show(orgViewInstance);
         }
-//        var Dropdown = { };
-//
-//        Dropdown.View = Marionette.ItemView.extend({
-//               template: 'configurationDropdown',
-//               initialize: function() {
-//
-//               },
-//               onRender: function(){
-//
-//               }
-//
-//
-//        });
-
-
-//alConfigs is what config is set from, but originally, detaisl modal shows configuration (which is passed as a parameter to onRender)
-            var allConfigs = this.getAllConfigs();
-
-            var accordionCollection = new AccordionCollection();
-
-            //var currentConfig1 = this.model.get('currentConfiguration');
-            var disabledConfigs1 = this.model.get('disabledConfigurations');
-
-            var cons = disabledConfigs1.models;
-
-//POPULATE allconfigs with correct configurations, NOT the ones returned from getAllConfigs
+       //Make an accordionCollection to hold the accordions. Uses AccordionView as it's itemView
+         var accordionCollection = new AccordionCollection();
             var daConfigs = this.getConfigIds();
+            //For each configuration, make an accordion consisting of a ConfigurationEdit.ConfigurationCollection that
+            //is populated with ConfigurationEdit.ConfigurationItem's
             daConfigs.forEach(function(config){
 
 
 
 
 
-
-//ISSUE: Why do I use cons[i] and never currentConfig1???
+            var toDisplay1;
             var service = config.get('service');
             if (!_.isUndefined(service)) {
-                var toDisplay = service.get('metatype').filter(function (mt) {
+                 toDisplay1 = service.get('metatype').filter(function (mt) {
                 return !_.contains(['shortname', 'id'], mt.get('id'));
             });}
 
-         var someCollection = new Service.MetatypeList(toDisplay);
+         var someCollection = new Service.MetatypeList(toDisplay1);
 
 
                accordionCollection.add({
@@ -543,31 +504,9 @@ define([
                });
             }.bind(this));
 
-
-            //this.accordions.show()
-
             this.accordions.show(new AccordionCollectionView({
                 collection: accordionCollection
             }));
-
-
-
-
-
-    //for (i = 0; i < allAccordionContents.length; i++) {
-    //    allAccordionContents[i].append('lkjlkjl');
-    //  }
-            //this.accordionContent.html('');
-
-
-
-
-
-
-//                    this.details.show(new ConfigurationEdit.ConfigurationCollection({
-//                        collection: someCollection,
-//                        service: service,
-//                        configuration: configuration}));
                 } else {
                     this.$(this.organization.el).html('');
                     this.$(this.details.el).html('');

@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Marshaller;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.codice.ddf.parser.Parser;
 import org.codice.ddf.parser.ParserConfigurator;
 import org.codice.ddf.parser.ParserException;
@@ -99,7 +100,6 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
     private static final String ID = "id";
 
     private static final String SHORTNAME = "shortname";
-
 
     @Override
     public CreateRequest process(CreateRequest input)
@@ -382,7 +382,7 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                         Hashtable<String, Object> serviceConfigurationProperties =
                                 new Hashtable<>();
 
-                        if(slotMap.get(BINDING_TYPE) == null) {
+                        if (slotMap.get(BINDING_TYPE) == null) {
                             continue;
                         }
                         String factoryPid = getSlotStringAttributes(slotMap.get(BINDING_TYPE)
@@ -390,6 +390,12 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                         factoryPid = factoryPid.concat(DISABLED_CONFIGURATION_SUFFIX);
 
                         for (Map.Entry slotValue : slotMap.entrySet()) {
+                            if (CollectionUtils.isEmpty(((SlotType1) (((ArrayList) slotValue.getValue()).get(
+                                    0))).getValueList()
+                                    .getValue()
+                                    .getValue())) {
+                                continue;
+                            }
                             String key =
                                     ((SlotType1) (((ArrayList) slotValue.getValue()).get(0))).getName();
                             String value =

@@ -20,9 +20,12 @@ import java.io.InputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Dictionary;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,9 +42,16 @@ import org.codice.ddf.registry.common.RegistryConstants;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminService;
+import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
+import org.osgi.service.metatype.AttributeDefinition;
+import org.osgi.service.metatype.MetaTypeInformation;
+import org.osgi.service.metatype.MetaTypeService;
+import org.osgi.service.metatype.ObjectClassDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +66,7 @@ import ddf.catalog.operation.CreateResponse;
 import ddf.catalog.operation.DeleteRequest;
 import ddf.catalog.operation.DeleteResponse;
 import ddf.catalog.operation.OperationTransaction;
+import ddf.catalog.operation.Update;
 import ddf.catalog.operation.UpdateRequest;
 import ddf.catalog.operation.UpdateResponse;
 import ddf.catalog.plugin.PluginExecutionException;
@@ -100,6 +111,8 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
     private static final String ID = "id";
 
     private static final String SHORTNAME = "shortname";
+
+    private MetaTypeService metatype;
 
     @Override
     public CreateRequest process(CreateRequest input)
@@ -210,6 +223,20 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
 
     @Override
     public UpdateResponse process(UpdateResponse input) throws PluginExecutionException {
+        if (Requests.isLocal(input.getRequest())) {
+            for (Update update : input.getUpdatedMetacards()) {
+                if (update.getNewMetacard()
+                        .getTags()
+                        .contains(RegistryConstants.REGISTRY_TAG)) {
+                    try {
+                        updateRegistryConfigurations(update.getNewMetacard());
+                    } catch (IOException | InvalidSyntaxException | ParserException e) {
+                        LOGGER.error(
+                                "Unable to update registry configurations, metacard still ingested");
+                    }
+                }
+            }
+        }
         return input;
     }
 
@@ -304,9 +331,8 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                             registryObjectTypeJAXBElement,
                             outputStream);
 
-                    metacard.setAttribute(new AttributeImpl(Metacard.METADATA, new String(
-                            outputStream.toByteArray(),
-                            Charsets.UTF_8)));
+                    metacard.setAttribute(new AttributeImpl(Metacard.METADATA,
+                            new String(outputStream.toByteArray(), Charsets.UTF_8)));
                 }
             }
 
@@ -339,6 +365,10 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
         this.configurationAdmin = configurationAdmin;
     }
 
+    public void setMetatype(MetaTypeService metatype) {
+        this.metatype = metatype;
+    }
+
     public void setParser(Parser parser) {
         List<String> contextPath = Arrays.asList(RegistryObjectType.class.getPackage()
                         .getName(),
@@ -367,6 +397,32 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
         if (registryObjectTypeJAXBElement != null) {
             RegistryPackageType registryPackageType =
                     (RegistryPackageType) registryObjectTypeJAXBElement.getValue();
+            String configId = metacard.getTitle();
+            if (configId == null || configId.isEmpty()) {
+                configId = registryPackageType.getId();
+            }
+            Configuration[] configurations = configurationAdmin.listConfigurations(String.format(
+                    "(id=%s)",
+                    configId));
+            //check for duplicate name situation
+            if (configurations != null && configurations.length > 0) {
+                String regId = (String) configurations[0].getProperties()
+                        .get(RegistryObjectMetacardType.REGISTRY_ID);
+                if (regId == null || !regId.equals(registryPackageType.getId())) {
+                    configId = String.format("%s - %s", configId, registryPackageType.getId());
+                }
+            }
+
+            configurations = configurationAdmin.listConfigurations(String.format("(registry-id=%s)",
+                    registryPackageType.getId()));
+
+            Map<String, Configuration> configMap = new HashMap<>();
+            if (configurations != null && configurations.length > 0) {
+                for (Configuration config : configurations) {
+                    configMap.put((String) config.getProperties()
+                            .get(BINDING_TYPE), config);
+                }
+            }
             RegistryObjectListType registryObjectListType =
                     registryPackageType.getRegistryObjectList();
             for (JAXBElement id : registryObjectListType.getIdentifiable()) {
@@ -387,7 +443,22 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                         }
                         String factoryPid = getSlotStringAttributes(slotMap.get(BINDING_TYPE)
                                 .get(0)).get(0);
-                        factoryPid = factoryPid.concat(DISABLED_CONFIGURATION_SUFFIX);
+                        String factoryPidDisabled =
+                                factoryPid.concat(DISABLED_CONFIGURATION_SUFFIX);
+
+                        if (configMap.containsKey(factoryPid)) {
+                            Dictionary<String, Object> props = configMap.get(factoryPid)
+                                    .getProperties();
+                            Enumeration<String> enumeration = props.keys();
+                            while (enumeration.hasMoreElements()) {
+                                String key = enumeration.nextElement();
+                                serviceConfigurationProperties.put(key, props.get(key));
+                            }
+                        } else {
+
+                            Map<String, Object> defaults = getMetatypeDefaults(factoryPid);
+                            serviceConfigurationProperties.putAll(defaults);
+                        }
 
                         for (Map.Entry slotValue : slotMap.entrySet()) {
                             if (CollectionUtils.isEmpty(((SlotType1) (((ArrayList) slotValue.getValue()).get(
@@ -405,15 +476,17 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                                             .get(0);
                             serviceConfigurationProperties.put(key, value);
                         }
-                        serviceConfigurationProperties.put(ID, metacard.getTitle());
-                        serviceConfigurationProperties.put(SHORTNAME, metacard.getTitle());
+                        serviceConfigurationProperties.put(ID, configId);
+                        serviceConfigurationProperties.put(SHORTNAME, configId);
                         serviceConfigurationProperties.put(RegistryObjectMetacardType.REGISTRY_ID,
-                                metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
-                                        .toString());
+                                registryPackageType.getId());
 
-                        Configuration configuration = configurationAdmin.createFactoryConfiguration(
-                                factoryPid,
-                                null);
+                        Configuration configuration = configMap.get(factoryPid);
+                        if (configuration == null) {
+                            configuration = configurationAdmin.createFactoryConfiguration(
+                                    factoryPidDisabled,
+                                    null);
+                        }
                         configuration.update(serviceConfigurationProperties);
                     }
 
@@ -421,15 +494,6 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
             }
         }
 
-    }
-
-    private Map<String, SlotType1> getSlotMap(List<SlotType1> slots) {
-        Map<String, SlotType1> slotMap = new HashMap<>();
-
-        for (SlotType1 slot : slots) {
-            slotMap.put(slot.getName(), slot);
-        }
-        return slotMap;
     }
 
     private Map<String, List<SlotType1>> getSlotMapWithMultipleValues(List<SlotType1> slots) {
@@ -462,4 +526,99 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
 
         return slotAttributes;
     }
+
+    private Map<String, Object> getMetatypeDefaults(String factoryPid) {
+        Map<String, Object> properties = new HashMap<>();
+        ObjectClassDefinition bundleMetatype = getObjectClassDefinition(factoryPid);
+        if (bundleMetatype != null) {
+            for (AttributeDefinition attributeDef : bundleMetatype.getAttributeDefinitions(
+                    ObjectClassDefinition.ALL)) {
+                if (attributeDef.getID() != null) {
+                    if (attributeDef.getDefaultValue() != null) {
+                        if (attributeDef.getCardinality() == 0) {
+                            properties.put(attributeDef.getID(),
+                                    getAttributeValue(attributeDef.getDefaultValue()[0],
+                                            attributeDef.getType()));
+                        } else {
+                            properties.put(attributeDef.getID(), attributeDef.getDefaultValue());
+                        }
+                    } else if (attributeDef.getCardinality() != 0) {
+                        properties.put(attributeDef.getID(), new String[0]);
+                    }
+                }
+            }
+        }
+
+        return properties;
+    }
+
+    private ObjectClassDefinition getObjectClassDefinition(Bundle bundle, String pid) {
+        Locale locale = Locale.getDefault();
+        if (bundle != null) {
+            if (metatype != null) {
+                MetaTypeInformation mti = metatype.getMetaTypeInformation(bundle);
+                if (mti != null) {
+                    try {
+                        return mti.getObjectClassDefinition(pid, locale.toString());
+                    } catch (IllegalArgumentException e) {
+                        // MetaTypeProvider.getObjectClassDefinition might throw illegal
+                        // argument exception. So we must catch it here, otherwise the
+                        // other configurations will not be shown
+                        // See https://issues.apache.org/jira/browse/FELIX-2390
+                        // https://issues.apache.org/jira/browse/FELIX-3694
+                    }
+                }
+            }
+        }
+
+        // fallback to nothing found
+        return null;
+    }
+
+    private ObjectClassDefinition getObjectClassDefinition(String pid) {
+        Bundle[] bundles = this.getBundleContext()
+                .getBundles();
+        for (int i = 0; i < bundles.length; i++) {
+            try {
+                ObjectClassDefinition ocd = this.getObjectClassDefinition(bundles[i], pid);
+                if (ocd != null) {
+                    return ocd;
+                }
+            } catch (IllegalArgumentException iae) {
+                // don't care
+            }
+        }
+        return null;
+    }
+
+    private Object getAttributeValue(String value, int type) {
+        switch (type) {
+        case AttributeDefinition.BOOLEAN:
+            return Boolean.valueOf(value);
+        case AttributeDefinition.BYTE:
+            return Byte.valueOf(value);
+        case AttributeDefinition.DOUBLE:
+            return Double.valueOf(value);
+        case AttributeDefinition.CHARACTER:
+            return value.toCharArray()[0];
+        case AttributeDefinition.FLOAT:
+            return Float.valueOf(value);
+        case AttributeDefinition.INTEGER:
+            return Integer.valueOf(value);
+        case AttributeDefinition.LONG:
+            return Long.valueOf(value);
+        case AttributeDefinition.SHORT:
+            return Short.valueOf(value);
+        case AttributeDefinition.PASSWORD:
+        case AttributeDefinition.STRING:
+        default:
+            return value;
+        }
+    }
+
+    private BundleContext getBundleContext() {
+        return FrameworkUtil.getBundle(this.getClass())
+                .getBundleContext();
+    }
+
 }

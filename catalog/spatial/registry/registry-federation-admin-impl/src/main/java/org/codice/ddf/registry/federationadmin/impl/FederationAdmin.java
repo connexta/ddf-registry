@@ -67,6 +67,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ddf.catalog.CatalogFramework;
+import ddf.catalog.data.Attribute;
 import ddf.catalog.data.Metacard;
 import ddf.catalog.data.Result;
 import ddf.catalog.data.impl.AttributeImpl;
@@ -124,6 +125,8 @@ public class FederationAdmin implements FederationAdminMBean {
 
     private static final String REGISTRY_FILTER =
             "(|(service.factoryPid=*Registry*Store*)(service.factoryPid=*registry*store*))";
+
+    private static final String TRANSIENT_VALUES_KEY = "TransientValues";
 
     private MBeanServer mbeanServer;
 
@@ -292,9 +295,23 @@ public class FederationAdmin implements FederationAdminMBean {
 
         List<RegistryPackageType> registryPackages =
                 federationAdminService.getLocalRegistryObjects();
-        registryWebMaps.addAll(registryPackages.stream()
-                .map(RegistryPackageWebConverter::getRegistryObjectWebMap)
-                .collect(Collectors.toList()));
+
+        List<Metacard> metacards = federationAdminService.getLocalRegistryMetacards();
+        Map<String, Metacard> metacardByRegistryIdMap =getRegistryIdMetacardMap(metacards);
+
+        for (RegistryPackageType registryPackage : registryPackages) {
+            Map<String, Object> registryWebMap = RegistryPackageWebConverter.getRegistryObjectWebMap(registryPackage);
+
+            Metacard metacard = metacardByRegistryIdMap.get(registryPackage.getId());
+            Map<String, Object> transientValues = getTransientValuesMap(metacard);
+            if (MapUtils.isNotEmpty(transientValues)) {
+                registryWebMap.put(TRANSIENT_VALUES_KEY, transientValues);
+            }
+
+            if (MapUtils.isNotEmpty(registryWebMap)) {
+                registryWebMaps.add(registryWebMap);
+            }
+        }
 
         localNodes.put("localNodes", registryWebMaps);
 
@@ -392,9 +409,24 @@ public class FederationAdmin implements FederationAdminMBean {
         try {
             List<RegistryPackageType> registryMetacardObjects =
                     federationAdminService.getRegistryObjects();
-            registryMetacardInfo.addAll(registryMetacardObjects.stream()
-                    .map(RegistryPackageWebConverter::getRegistryObjectWebMap)
-                    .collect(Collectors.toList()));
+
+            List<Metacard> metacards = federationAdminService.getRegistryMetacards();
+            Map<String, Metacard> metacardByRegistryIdMap = getRegistryIdMetacardMap(metacards);
+
+            for (RegistryPackageType registryPackage : registryMetacardObjects) {
+                Map<String, Object> registryWebMap = RegistryPackageWebConverter.getRegistryObjectWebMap(registryPackage);
+
+                Metacard metacard = metacardByRegistryIdMap.get(registryPackage.getId());
+                Map<String, Object> transientValues = getTransientValuesMap(metacard);
+                if (MapUtils.isNotEmpty(transientValues)) {
+                    registryWebMap.put(TRANSIENT_VALUES_KEY, transientValues);
+                }
+
+                if (MapUtils.isNotEmpty(registryWebMap)) {
+                    registryMetacardInfo.add(registryWebMap);
+                }
+            }
+
         } catch (FederationAdminException e) {
             LOGGER.warn("Couldn't get remote registry metacards '{}'", e);
         }
@@ -562,6 +594,32 @@ public class FederationAdmin implements FederationAdminMBean {
         }
 
         return metacard;
+    }
+
+    private Map<String, Metacard> getRegistryIdMetacardMap(List<Metacard> metacards) {
+        Map<String, Metacard> registryIdMetacardMap = new HashMap<>();
+
+        for (Metacard metacard : metacards) {
+            String registryId = metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID).getValue().toString();
+
+            registryIdMetacardMap.put(registryId, metacard);
+        }
+
+        return registryIdMetacardMap;
+    }
+
+    private Map<String, Object> getTransientValuesMap(Metacard metacard) {
+        Map<String, Object> transientValuesMap = new HashMap<>();
+        if (metacard != null) {
+            for (String transientAttributeKey : RegistryObjectMetacardType.TRANSIENT_ATTRIBUTES) {
+                Attribute transientAttribute = metacard.getAttribute(transientAttributeKey);
+
+                if (transientAttribute != null) {
+                    transientValuesMap.put(transientAttributeKey, transientAttribute.getValue());
+                }
+            }
+        }
+        return transientValuesMap;
     }
 
     private void configureMBean() {

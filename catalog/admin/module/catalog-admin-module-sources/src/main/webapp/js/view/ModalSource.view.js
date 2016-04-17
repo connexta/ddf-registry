@@ -202,25 +202,26 @@ define([
                 if (idx > 0) {
                     service.set("fpid", fpid.substring(0, idx));
                 }
-                var IdsToPublishTo = [];
-                var $checkboxArray = $(':checkbox:checked');
-                $.each($checkboxArray, function(){
-                    IdsToPublishTo.push(this.value);
-                });
-                var publishResponse = {
-                type: 'EXEC',
-                mbean: "org.codice.ddf.registry:type=FederationAdminMBean",
-                operation: "updatePublications",
-                arguments: [(this.model.get('editConfig').get('name')), IdsToPublishTo ]
-                };
-                //Remove below 2 lines, only used for to stop grunt complaining
-                var t = publishResponse;
-                publishResponse = t;
                 if (_.isUndefined(service.get('properties').id)) {
                     var name = this.$(".sourceName").find('input').val().trim();
                     this.setConfigName(service, name);
                 }
-
+                //The section below should be moved to be done after the save is successful
+                //ie Dont publish unless settings have been successfully saved.
+                    var IdsToPublishTo = [];
+                    var $checkboxArray = $(':checkbox:checked');
+                    $.each($checkboxArray, function(){
+                        IdsToPublishTo.push(this.value);
+                    });
+                    var publishResponse = {
+                        type: 'EXEC',
+                        mbean: "org.codice.ddf.registry:type=FederationAdminMBean",
+                        operation: "updatePublications",
+                        arguments: [(this.model.get('editConfig').get('name')), IdsToPublishTo ]
+                    };
+                    //Remove below 2 lines, only used for to stop grunt complaining
+                    var t = publishResponse;
+                    publishResponse = t;
                 service.save().then(function (response) {
                         // check to see if the service corresponds to an existing source
                         // if it does, return the source
@@ -417,8 +418,6 @@ define([
 //                    view.$el.trigger('shown.bs.modal');
 //
 //        },
-
-
         rebind: function (properties) {
             var $boundData = this.$el.find('.bound-controls');
             var bindings = Backbone.ModelBinder.createDefaultBindings($boundData, 'name');
@@ -466,7 +465,6 @@ define([
             if (!_.isUndefined(service)) {
         if(this.mode === 'edit'){
         var OrganizationSource = {};
-
         OrganizationSource.View = Marionette.ItemView.extend({
                template: 'sourceOrganization',
                initialize: function() {
@@ -478,8 +476,6 @@ define([
 
 
         });
-
-
         var Organization = Backbone.Model.extend({
         defaults: {
                     name:"TESTNAME",
@@ -499,22 +495,14 @@ define([
             //For each configuration, make an accordion consisting of a ConfigurationEdit.ConfigurationCollection that
             //is populated with ConfigurationEdit.ConfigurationItem's
             daConfigs.forEach(function(config){
-
-
-
-
-
             var toDisplay1;
             var service = config.get('service');
             if (!_.isUndefined(service)) {
                  toDisplay1 = service.get('metatype').filter(function (mt) {
                 return !_.contains(['shortname', 'id'], mt.get('id'));
             });}
-
          var someCollection = new Service.MetatypeList(toDisplay1);
-
-
-               accordionCollection.add({
+         accordionCollection.add({
                     title: config.get('name'),
                     contentView: new ConfigurationEdit.ConfigurationCollection({
                                                          collection: someCollection,
@@ -522,7 +510,6 @@ define([
                                                          configuration: config})
                });
             }.bind(this));
-
             this.accordions.show(new AccordionCollectionView({
                 collection: accordionCollection
             }));
@@ -534,10 +521,5 @@ define([
                 }
             }
     });
-
     return ModalSource;
-
 });
-
-
-

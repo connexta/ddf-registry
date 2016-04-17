@@ -202,7 +202,6 @@ define([
                 if (idx > 0) {
                     service.set("fpid", fpid.substring(0, idx));
                 }
-
                 if (_.isUndefined(service.get('properties').id)) {
                     var name = this.$(".sourceName").find('input').val().trim();
                     this.setConfigName(service, name);
@@ -242,6 +241,20 @@ define([
                             view.closeAndUnbind();
                         }
                     },
+                    var IdsToPublishTo = [];
+                    var $checkboxArray = $(':checkbox:checked');
+                    $.each($checkboxArray, function(){
+                        IdsToPublishTo.push(this.value);
+                    });
+                    var publishResponse = {
+                        type: 'EXEC',
+                        mbean: "org.codice.ddf.registry:type=FederationAdminMBean",
+                        operation: "updatePublications",
+                        arguments: [(this.model.get('editConfig').get('name')), IdsToPublishTo ]
+                    };
+                    //Remove below 2 lines, only used for to stop grunt complaining
+                    var t = publishResponse;
+                    publishResponse = t;
                     function () {
                         wreqr.vent.trigger('refreshSources');
                     }).always(function () {
@@ -521,7 +534,5 @@ define([
                 }
             }
     });
-
     return ModalSource;
-
 });

@@ -255,6 +255,20 @@ define([
                             view.closeAndUnbind();
                         }
                     },
+                    var IdsToPublishTo = [];
+                    var $checkboxArray = $(':checkbox:checked');
+                    $.each($checkboxArray, function(){
+                        IdsToPublishTo.push(this.value);
+                    });
+                    var publishResponse = {
+                        type: 'EXEC',
+                        mbean: "org.codice.ddf.registry:type=FederationAdminMBean",
+                        operation: "updatePublications",
+                        arguments: [(this.model.get('editConfig').get('name')), IdsToPublishTo ]
+                    };
+                    //Remove below 2 lines, only used for to stop grunt complaining
+                    var t = publishResponse;
+                    publishResponse = t;
                     function () {
                         wreqr.vent.trigger('refreshSources');
                     }).always(function () {
@@ -499,11 +513,6 @@ define([
             //For each configuration, make an accordion consisting of a ConfigurationEdit.ConfigurationCollection that
             //is populated with ConfigurationEdit.ConfigurationItem's
             daConfigs.forEach(function(config){
-
-
-
-
-
             var toDisplay1;
             var service = config.get('service');
             if (!_.isUndefined(service)) {
@@ -534,10 +543,36 @@ define([
                 }
             }
     });
-
-    return ModalSource;
-
 });
+            var toDisplay1;
+            var service = config.get('service');
+            if (!_.isUndefined(service)) {
+                 toDisplay1 = service.get('metatype').filter(function (mt) {
+                return !_.contains(['shortname', 'id'], mt.get('id'));
+            });}
+
+         var someCollection = new Service.MetatypeList(toDisplay1);
 
 
+               accordionCollection.add({
+                    title: config.get('name'),
+                    contentView: new ConfigurationEdit.ConfigurationCollection({
+                                                         collection: someCollection,
+                                                         service: service,
+                                                         configuration: config})
+               });
+            }.bind(this));
 
+            this.accordions.show(new AccordionCollectionView({
+                collection: accordionCollection
+            }));
+
+                } else {
+                    this.$(this.organization.el).html('');
+                    this.$(this.details.el).html('');
+                    this.$(this.buttons.el).html('');
+                }
+            }
+    });
+    return ModalSource;
+});

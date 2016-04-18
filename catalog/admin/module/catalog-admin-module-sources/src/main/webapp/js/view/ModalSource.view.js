@@ -187,6 +187,7 @@ define([
                     configs.add(config.get('service'));
                 });
             }
+//            debugger;
             return configs;
         },
         /**
@@ -213,15 +214,15 @@ define([
                     $.each($checkboxArray, function(){
                         IdsToPublishTo.push(this.value);
                     });
-                    var publishResponse = {
+                    var publishResponse = $.ajax({
                         type: 'EXEC',
                         mbean: "org.codice.ddf.registry:type=FederationAdminMBean",
                         operation: "updatePublications",
-                        arguments: [(this.model.get('editConfig').get('name')), IdsToPublishTo ]
-                    };
+                        data: [(this.model.get('editConfig').get('name')), JSON.stringify(IdsToPublishTo) ]
+                    });
                     //Remove below 2 lines, only used for to stop grunt complaining
-                    var t = publishResponse;
-                    publishResponse = t;
+//                    var t = publishResponse;
+//                    publishResponse = t;
                 service.save().then(function (response) {
                         // check to see if the service corresponds to an existing source
                         // if it does, return the source
@@ -448,6 +449,8 @@ define([
             return config;
         },
         getConfigIds: function(){
+
+
             var theConfigs = this.getAllConfigs();
             var listOfConfigStrings = [];
             theConfigs.models.forEach(function(con){
@@ -457,7 +460,7 @@ define([
             listOfConfigStrings.forEach(function(conString){
                 listOfConfigs.push(this.findConfigFromId(conString));
             }.bind(this));
-
+//            debugger;
             return listOfConfigs;
         },
         renderDetails: function (configuration) {
@@ -513,7 +516,7 @@ define([
             this.accordions.show(new AccordionCollectionView({
                 collection: accordionCollection
             }));
-
+//            debugger;
                 } else {
                     this.$(this.organization.el).html('');
                     this.$(this.details.el).html('');

@@ -40,8 +40,8 @@ import org.codice.ddf.parser.ParserConfigurator;
 import org.codice.ddf.parser.ParserException;
 import org.codice.ddf.registry.common.RegistryConstants;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
-import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
-import org.codice.ddf.registry.federationadmin.service.FederationAdminService;
+import org.codice.ddf.security.common.Security;
+import org.opengis.filter.Filter;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
@@ -57,23 +57,35 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Charsets;
 
+import ddf.catalog.CatalogFramework;
 import ddf.catalog.Constants;
 import ddf.catalog.data.Attribute;
 import ddf.catalog.data.Metacard;
+import ddf.catalog.data.Result;
 import ddf.catalog.data.impl.AttributeImpl;
+import ddf.catalog.federation.FederationException;
+import ddf.catalog.filter.FilterBuilder;
 import ddf.catalog.operation.CreateRequest;
 import ddf.catalog.operation.CreateResponse;
 import ddf.catalog.operation.DeleteRequest;
 import ddf.catalog.operation.DeleteResponse;
 import ddf.catalog.operation.OperationTransaction;
+import ddf.catalog.operation.QueryRequest;
+import ddf.catalog.operation.QueryResponse;
 import ddf.catalog.operation.Update;
 import ddf.catalog.operation.UpdateRequest;
 import ddf.catalog.operation.UpdateResponse;
+import ddf.catalog.operation.impl.QueryImpl;
+import ddf.catalog.operation.impl.QueryRequestImpl;
 import ddf.catalog.plugin.PluginExecutionException;
 import ddf.catalog.plugin.PostIngestPlugin;
 import ddf.catalog.plugin.PreIngestPlugin;
 import ddf.catalog.plugin.StopProcessingException;
+import ddf.catalog.source.SourceUnavailableException;
+import ddf.catalog.source.UnsupportedQueryException;
 import ddf.catalog.util.impl.Requests;
+import ddf.security.SecurityConstants;
+import ddf.security.Subject;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.ExternalIdentifierType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryObjectListType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryObjectType;
@@ -92,7 +104,9 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
 
     private Parser parser;
 
-    private FederationAdminService federationAdmin;
+    private CatalogFramework catalogFramework;
+
+    private FilterBuilder filterBuilder;
 
     private ParserConfigurator marshalConfigurator;
 
@@ -348,17 +362,37 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                 .toString();
     }
 
-    public void init() throws FederationAdminException {
+    public void init()
+            throws UnsupportedQueryException, SourceUnavailableException, FederationException {
 
-        List<Metacard> registryMetacards = federationAdmin.getRegistryMetacards();
+        List<Metacard> registryMetacards;
+        Filter registryFilter = filterBuilder.attribute(Metacard.TAGS)
+                .is()
+                .like()
+                .text(RegistryConstants.REGISTRY_TAG);
+        Subject systemSubject = Security.getInstance()
+                .getSystemSubject();
+        QueryRequest request = new QueryRequestImpl(new QueryImpl(registryFilter));
+        request.getProperties()
+                .put(SecurityConstants.SECURITY_SUBJECT, systemSubject);
 
+        QueryResponse response = catalogFramework.query(request);
+        registryMetacards = response.getResults()
+                .stream()
+                .map(Result::getMetacard)
+                .collect(Collectors.toList());
         registryIds.addAll(registryMetacards.stream()
                 .map(this::getRegistryId)
                 .collect(Collectors.toList()));
+
     }
 
-    public void setFederationAdmin(FederationAdminService federationAdmin) {
-        this.federationAdmin = federationAdmin;
+    public void setFilterBuilder(FilterBuilder filterBuilder) {
+        this.filterBuilder = filterBuilder;
+    }
+
+    public void setCatalogFramework(CatalogFramework framework) {
+        this.catalogFramework = framework;
     }
 
     public void setConfigurationAdmin(ConfigurationAdmin configurationAdmin) {

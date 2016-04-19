@@ -66,6 +66,13 @@ define(['underscore'], function (_) {
                         values: [],
                         type: 'string'
                     },
+                    cdrLink: {
+                        displayName: 'CDR Link',
+                        description: 'Link to url where the CDR describe data can be obtained',
+                        values: [],
+                        type: 'string',
+                        isSlot: true
+                    },
                     liveDate: {
                         displayName: 'Live Date',
                         description: 'Date indicating when this node went live or operational',
@@ -248,6 +255,21 @@ define(['underscore'], function (_) {
                         description: 'This binding version',
                         values: [],
                         type: 'string'
+                    },
+                    accessURI: {
+                        displayName: 'Access URL',
+                        description: 'The url used to access this binding',
+                        values: [],
+                        type: 'string'
+                    },
+                    searchUrlPropertyKey: {
+                        displayName: 'Url Property Key',
+                        description: 'Property that the accessURI value should be put in for source creation',
+                        values: [],
+                        type: 'string',
+                        multiValued: true,
+                        isSlot: true
+
                     },
                     bindingType: {
                         displayName: 'Service Binding Type',

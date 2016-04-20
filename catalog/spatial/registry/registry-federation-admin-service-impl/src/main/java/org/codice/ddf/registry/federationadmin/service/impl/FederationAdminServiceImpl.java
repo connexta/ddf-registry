@@ -52,6 +52,7 @@ import org.codice.ddf.registry.common.RegistryConstants;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminService;
+import org.codice.ddf.registry.schemabindings.RegistryPackageUtils;
 import org.codice.ddf.security.common.Security;
 import org.geotools.filter.FilterFactoryImpl;
 import org.opengis.filter.Filter;
@@ -662,7 +663,7 @@ public class FederationAdminServiceImpl implements FederationAdminService {
 
         String siteName = SystemInfo.getSiteName();
         if (StringUtils.isNotBlank(siteName)) {
-            extrinsicObject.setName(getInternationalStringTypeFromString(siteName));
+            extrinsicObject.setName(RegistryPackageUtils.getInternationalStringTypeFromString(siteName));
         }
 
         String home = SystemBaseUrl.getBaseUrl();

@@ -61,6 +61,10 @@
             <artifactId>jaxb2-basics-runtime</artifactId>
             <version>0.6.0</version>
         </dependency>
+        <dependency>
+            <groupId>commons-collections</groupId>
+            <artifactId>commons-collections</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
@@ -135,6 +139,7 @@
                             oasis.names.tc.ebxml_regrep.xsd.rim._3
                             ,net.opengis.ogc
                             ,net.opengis.cat.wrs.v_1_0_2
+                            ,org.codice.ddf.registry.schemabindings
                         </Export-Package>
                         <Private-Package>
                             net.opengis.filter.v_1_1_0,

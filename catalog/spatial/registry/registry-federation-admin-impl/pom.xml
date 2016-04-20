@@ -66,6 +66,11 @@
             <artifactId>admin-core-api</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.4</version>
+        </dependency>
+        <dependency>
             <groupId>ddf.platform</groupId>
             <artifactId>platform-parser-xml</artifactId>
             <version>${project.version}</version>
@@ -85,7 +90,8 @@
                         <Embed-Dependency>
                             catalog-core-api-impl;scope=!test,
                             ddf-security-common,
-                            registry-common
+                            registry-common,
+                            gson
                         </Embed-Dependency>
                         <Import-Package>
                             !org.codice.ddf.platform.util.http,

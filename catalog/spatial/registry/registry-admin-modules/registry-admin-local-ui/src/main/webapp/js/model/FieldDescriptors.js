@@ -50,7 +50,7 @@ define(['underscore'], function (_) {
                 General: {
                     Name: {
                         displayName: 'Node Name',
-                        description: 'This node\'s name',
+                        description: 'This node\'s name as it should appear to external systems',
                         values: [],
                         type: 'string'
                     },
@@ -65,87 +65,6 @@ define(['underscore'], function (_) {
                         description: 'This node\'s Version',
                         values: [],
                         type: 'string'
-                    },
-                    cdrLink: {
-                        displayName: 'CDR Link',
-                        description: 'Link to url where the CDR describe data can be obtained',
-                        values: [],
-                        type: 'string',
-                        isSlot: true
-                    },
-                    liveDate: {
-                        displayName: 'Live Date',
-                        description: 'Date indicating when this node went live or operational',
-                        values: [],
-                        type: 'date',
-                        isSlot: true
-                    },
-                    dataStartDate: {
-                        displayName: 'Data Start Date',
-                        description: 'Date indicating the earliest data sets available in this node',
-                        values: [],
-                        type: 'date',
-                        isSlot: true
-                    },
-                    dataEndDate: {
-                        displayName: 'Data End Date',
-                        description: 'Date indicating when data stopped being added to this instance',
-                        values: [],
-                        type: 'date',
-                        isSlot: true
-                    },
-                    lastUpdated: {
-                        displayName: 'Last Updated',
-                        description: 'Date this entry\'s data was last updated',
-                        values: [],
-                        type: 'date',
-                        isSlot: true
-                    },
-                    links: {
-                        displayName: 'Associated Links',
-                        description: 'Any links that might be associated with this node like wiki pages',
-                        values: [],
-                        type: 'string',
-                        multiValued: true,
-                        isSlot: true
-                    },
-                    location: {
-                        displayName: 'Geographic Location',
-                        description: 'Geographic location of this node described by a gml:Point in decimal degrees. Format "lat lon"',
-                        values: [],
-                        type: 'point',
-                        isSlot: true
-                    },
-                    region: {
-                        displayName: 'Region',
-                        description: 'Region of this instance described by a UNSD region. The location should be within this region',
-                        values: [],
-                        type: 'string',
-                        isSlot: true
-                    },
-                    inputDataSources: {
-                        displayName: 'Data Sources',
-                        description: 'Sources of information that contribute to this node\'s data',
-                        values: [],
-                        type: 'string',
-                        multiValued: true,
-                        isSlot: true
-                    },
-                    dataTypes: {
-                        displayName: 'Data Types',
-                        description: 'Types of data that this node contains',
-                        values: [],
-                        type: 'string',
-                        multiValued: true,
-                        isSlot: true
-                    },
-                    securityLevel: {
-                        displayName: 'Security Attributes',
-                        description: 'Security attributes associated with this node. Format "attribute=val1,val2"',
-                        values: [],
-                        type: 'string',
-                        multiValued: true,
-                        isSlot: true
                     }
                 },
                 Organization: {
@@ -176,8 +95,8 @@ define(['underscore'], function (_) {
                 },
                 Person: {
                     Name: {
-                        displayName: 'Contact Designation',
-                        description: 'Contact Designation',
+                        displayName: 'Contact Title',
+                        description: 'Contact Title',
                         values: [],
                         type: 'string'
                     },
@@ -261,51 +180,18 @@ define(['underscore'], function (_) {
                         description: 'The url used to access this binding',
                         values: [],
                         type: 'string'
-                    },
-                    searchUrlPropertyKey: {
-                        displayName: 'Url Property Key',
-                        description: 'Property that the accessURI value should be put in for source creation',
-                        values: [],
-                        type: 'string',
-                        multiValued: true,
-                        isSlot: true
-
-                    },
-                    bindingType: {
-                        displayName: 'Service Binding Type',
-                        description: 'The binding type for the service.',
-                        values: [],
-                        type: 'string',
-                        multiValued: true,
-                        isSlot: true
-
-                    },
-                    serviceType: {
-                        displayName: 'Service Type',
-                        description: 'The service type, usually SOAP or REST',
-                        values: [],
-                        type: 'string',
-                        isSlot: true
-                    },
-                    endpointDocumentation: {
-                        displayName: 'Service Documentation',
-                        description: 'Set of links pointing to the documentation for this service',
-                        values: [],
-                        type: 'string',
-                        multiValued: true,
-                        isSlot: true
                     }
                 },
                 Content: {
                     Name: {
                         displayName: 'Content Name',
-                        description: 'Content collection name',
+                        description: 'Name for this metadata content',
                         values: [],
                         type: 'string'
                     },
                     Description: {
                         displayName: 'Content Description',
-                        description: 'Short description for this content collection',
+                        description: 'Short description for this metadata content',
                         values: [],
                         type: 'string'
                     },
@@ -315,68 +201,6 @@ define(['underscore'], function (_) {
                         type: 'string',
                         values: 'urn:registry:content:collection',
                         multiValued: false
-                    },
-                    //bounds aren't processed on the backend yet
-                    // bounds: {
-                    //     displayName: 'Content Bounds',
-                    //     description: 'Lower corner of a gml:Envelop',
-                    //     values: [],
-                    //     type: 'bounds',
-                    //     isSlot: true
-                    // },
-                    mimeTypes: {
-                        displayName: 'Mime Types',
-                        description: 'Mime Types',
-                        values: [],
-                        type: 'string',
-                        multiValued: true,
-                        custom: false,
-                        isSlot: true
-                    },
-                    recordCount: {
-                        displayName: 'Number of records',
-                        description: 'Number of records in content collection',
-                        values: [],
-                        type: 'number',
-                        multiValued: false,
-                        custom: false,
-                        isSlot: true
-                    },
-                    startDate: {
-                        displayName: 'Data Start Date',
-                        description: 'Date indicating the earliest data sets available in this contentCollection',
-                        values: [],
-                        type: 'date',
-                        multiValued: false,
-                        custom: false,
-                        isSlot: true
-                    },
-                    endDate: {
-                        displayName: 'Data End Date',
-                        description: 'Date indicating when data stopped being added to this content collection',
-                        values: [],
-                        type: 'date',
-                        multiValued: false,
-                        custom: false,
-                        isSlot: true
-                    },
-                    lastUpdated: {
-                        displayName: 'Last Updated',
-                        description: 'Date this content collections data was last updated',
-                        values: [],
-                        type: 'date',
-                        multiValued: false,
-                        custom: false,
-                        isSlot: true
-                    },
-                    types: {
-                        displayName: 'Content Types',
-                        description: 'Content types in the content collection',
-                        values: [],
-                        type: 'string',
-                        multiValued: true,
-                        custom: false,
-                        isSlot: true
                     }
                 },
                 PersonName: {
@@ -396,7 +220,7 @@ define(['underscore'], function (_) {
                 TelephoneNumber: {
                     phoneType: {
                         displayName: 'Phone Type',
-                        description: 'Phone type',
+                        description: 'Phone type could be work, home, mobile etc.',
                         values: [],
                         type: 'string'
                     },
@@ -428,7 +252,7 @@ define(['underscore'], function (_) {
                 EmailAddress: {
                     type: {
                         displayName: 'Email Type',
-                        description: 'Email Type',
+                        description: 'Email Type could be work, personal, primary etc.',
                         values: [],
                         type: 'string'
                     },
@@ -472,7 +296,22 @@ define(['underscore'], function (_) {
                     }
                 }
             };
+            if(this.customSlots){
+                for (var prop in this.customSlots) {
+                    if (this.customSlots.hasOwnProperty(prop)) {
+                        this.mixInCustomSlots(descriptors[prop],this.customSlots[prop]);
+                    }
+                }
+            }
             return descriptors;
+        },
+        mixInCustomSlots: function(base, custom){
+            for (var prop in custom) {
+                if (custom.hasOwnProperty(prop)) {
+                    base[prop] = custom[prop];
+                    base[prop].isSlot = true;
+                }
+            }
         },
         constructEmailTitle: function () {
             var title = this.getField('type').get('value') + ' ' + this.getField('address').get('value');

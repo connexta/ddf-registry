@@ -15,10 +15,14 @@ package org.codice.ddf.registry.federationadmin.impl;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -71,6 +75,8 @@ import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.metatype.ObjectClassDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
 
 import ddf.catalog.CatalogFramework;
 import ddf.catalog.data.Attribute;
@@ -140,6 +146,14 @@ public class FederationAdmin implements FederationAdminMBean {
 
     private static final String TRANSIENT_VALUES_KEY = "TransientValues";
 
+    private static final String CUSTOM_SLOTS_KEY = "customSlots";
+
+    private static final String KARAF_ETC = "karaf.etc";
+
+    private static final String REGISTRY_CONFIG_DIR = "registry";
+
+    private static final String REGISTRY_FIELDS_FILE = "registry-custom-slots.json";
+
     private MBeanServer mbeanServer;
 
     private ObjectName objectName;
@@ -157,6 +171,8 @@ public class FederationAdmin implements FederationAdminMBean {
     private CatalogFramework catalogFramework;
 
     private Map<String, CatalogStore> catalogStoreMap;
+
+    private Map<String, Object> customSlots;
 
     public FederationAdmin(ConfigurationAdmin configurationAdmin) {
         configureMBean();
@@ -326,6 +342,10 @@ public class FederationAdmin implements FederationAdminMBean {
             if (MapUtils.isNotEmpty(registryWebMap)) {
                 registryWebMaps.add(registryWebMap);
             }
+        }
+
+        if (customSlots != null) {
+            localNodes.put(CUSTOM_SLOTS_KEY, customSlots);
         }
 
         localNodes.put("localNodes", registryWebMaps);
@@ -733,6 +753,33 @@ public class FederationAdmin implements FederationAdminMBean {
         } catch (Exception e) {
             LOGGER.warn("Exception un registering mbean: ", e);
             throw new RuntimeException(e);
+        }
+    }
+
+    public void init() {
+
+        String registryFieldsPath = String.format("%s%s%s%s%s",
+                System.getProperty(KARAF_ETC),
+                File.separator,
+                REGISTRY_CONFIG_DIR,
+                File.separator,
+                REGISTRY_FIELDS_FILE);
+
+        Path path = Paths.get(registryFieldsPath);
+        if (path.toFile()
+                .exists()) {
+            try {
+                String registryFieldsJsonString = new String(Files.readAllBytes(path));
+                Gson gson = new Gson();
+                customSlots = new HashMap<>();
+                customSlots = (Map<String, Object>) gson.fromJson(registryFieldsJsonString,
+                        customSlots.getClass());
+            } catch (IOException e) {
+                LOGGER.error(
+                        "Error reading {}. This will result in no custom fields being shown for registry node editing",
+                        registryFieldsPath,
+                        e);
+            }
         }
     }
 

@@ -16,7 +16,7 @@
            xsi:schemaLocation="http://www.osgi.org/xmlns/blueprint/v1.0.0 http://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd">
 
     <bean id="federationAdmin" class="org.codice.ddf.registry.federationadmin.impl.FederationAdmin"
-          destroy-method="destroy">
+          destroy-method="destroy" init-method="init">
         <argument ref="configurationAdmin"/>
         <property name="catalogFramework" ref="catalogFramework"/>
         <property name="catalogStoreMap" ref="catalogStoreMap"/>

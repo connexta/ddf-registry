@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -769,7 +770,8 @@ public class FederationAdmin implements FederationAdminMBean {
         if (path.toFile()
                 .exists()) {
             try {
-                String registryFieldsJsonString = new String(Files.readAllBytes(path));
+                String registryFieldsJsonString = new String(Files.readAllBytes(path),
+                        StandardCharsets.UTF_8);
                 Gson gson = new Gson();
                 customSlots = new HashMap<>();
                 customSlots = (Map<String, Object>) gson.fromJson(registryFieldsJsonString,

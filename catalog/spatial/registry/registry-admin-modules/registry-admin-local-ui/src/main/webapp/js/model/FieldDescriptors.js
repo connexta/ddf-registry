@@ -52,7 +52,9 @@ define(['underscore'], function (_) {
                         displayName: 'Node Name',
                         description: 'This node\'s name as it should appear to external systems',
                         values: [],
-                        type: 'string'
+                        type: 'string',
+                        regex: '/^(\\w|\\d)/',
+                        regexMessage: "Must supply a name starting with a letter or digit"
                     },
                     Description: {
                         displayName: 'Node Description',
@@ -151,9 +153,12 @@ define(['underscore'], function (_) {
                     },
                     ServiceBinding: {
                         isGroup: true,
-                        displayName: "Bindings",
+                        displayName: 'Bindings',
                         multiValued: true,
-                        constructTitle: this.constructNameVersionTitle
+                        constructTitle: this.constructNameVersionTitle,
+                        autoPopulateFunction: this.populateFromEndpointProps,
+                        autoPopulateId: 'id',
+                        autoPopulateName: 'name'
                     }
                 },
                 ServiceBinding: {
@@ -175,7 +180,7 @@ define(['underscore'], function (_) {
                         values: [],
                         type: 'string'
                     },
-                    accessURI: {
+                    accessUri: {
                         displayName: 'Access URL',
                         description: 'The url used to access this binding',
                         values: [],
@@ -221,31 +226,26 @@ define(['underscore'], function (_) {
                     phoneType: {
                         displayName: 'Phone Type',
                         description: 'Phone type could be work, home, mobile etc.',
-                        values: [],
                         type: 'string'
                     },
                     countryCode: {
                         displayName: 'Country Code',
                         description: 'Country code',
-                        values: [],
                         type: 'number'
                     },
                     areaCode: {
                         displayName: 'Area Code',
                         description: 'Area Code',
-                        values: [],
                         type: 'number'
                     },
                     number: {
                         displayName: 'Number',
                         description: 'Number',
-                        values: [],
                         type: 'string'
                     },
                     extension: {
                         displayName: 'Extension',
                         description: 'Extension',
-                        values: [],
                         type: 'number'
                     }
                 },
@@ -296,16 +296,16 @@ define(['underscore'], function (_) {
                     }
                 }
             };
-            if(this.customSlots){
+            if (this.customSlots) {
                 for (var prop in this.customSlots) {
                     if (this.customSlots.hasOwnProperty(prop)) {
-                        this.mixInCustomSlots(descriptors[prop],this.customSlots[prop]);
+                        this.mixInCustomSlots(descriptors[prop], this.customSlots[prop]);
                     }
                 }
             }
             return descriptors;
         },
-        mixInCustomSlots: function(base, custom){
+        mixInCustomSlots: function (base, custom) {
             for (var prop in custom) {
                 if (custom.hasOwnProperty(prop)) {
                     base[prop] = custom[prop];
@@ -330,7 +330,9 @@ define(['underscore'], function (_) {
             if (this.getField('extension').get('value')) {
                 title = title + ' x' + this.getField('extension').get('value');
             }
-            title = title.replace(/undefined/g, '').trim();
+            if(title) {
+                title = title.replace(/undefined/g, '').trim();
+            }
             if (!title || title === '()  x') {
                 title = 'Empty Phone Number';
             }
@@ -383,6 +385,24 @@ define(['underscore'], function (_) {
                 title = this.get('segmentType');
             }
             return title;
+        },
+        populateFromEndpointProps: function (segment, prePopObj) {
+            segment.getField('Name').set('value', prePopObj.name);
+            segment.getField('Description').set('value', prePopObj.description);
+            segment.getField('VersionInfo').set('value', prePopObj.version);
+            segment.getField('accessUri').set('value', prePopObj.url);
+
+            for (var prop in prePopObj) {
+                if (prePopObj.hasOwnProperty(prop) && prop !== 'name' && prop !== 'description' && prop !== 'version' && prop !== 'accessURI' && prop !== 'id') {
+                    var field = segment.getField(prop);
+                    if (!field) {
+                        segment.addField(prop, 'string', [prePopObj[prop]]);
+
+                    } else {
+                        segment.setFieldValue(field, [prePopObj[prop]]);
+                    }
+                }
+            }
         }
     };
     return FieldDescriptors;

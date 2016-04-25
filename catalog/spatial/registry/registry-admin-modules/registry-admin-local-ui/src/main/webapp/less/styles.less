@@ -18,6 +18,9 @@ table.align-middle{
       th:last-child{
         text-align: right;
       }
+      th {
+        width: 25%;
+      }
     }
   }
   label {
@@ -41,10 +44,17 @@ table.align-middle{
         background-color: white;
       }
     }
+    td {
+      width: 25%;
+    }
   }
-
   .add-segment{
     text-align: right;
+  }
+
+  .button-icon {
+    padding-left: 5px;
+    padding-right: 5px;
   }
 
 }
@@ -129,6 +139,53 @@ table.align-middle{
     }
   }
 
+  .validation-error {
+    border-color: red;
+  }
+
+  .validation-error-text {
+    color: red;
+  }
+
+  .error-list {
+    text-align: left;
+  }
+  .string-input{
+    width: 80%;
+  }
+  .multi-value-field{
+    width:88.5%;
+  }
+  .string-table-input {
+    width: 100%;
+  }
+  .remove-value {
+    padding-left: 10px;
+  }
+  .lat-lon-input {
+    width: 35%;
+    margin-right: 10px;
+  }
+  .association-table {
+    margin-left: 10px;
+    width: 75%;
+
+    tr:nth-child(odd) > td{
+        border: none;
+        background-color: #f9f9f9;
+
+    }
+    tr:nth-child(even) > td{
+        border: none;
+        background-color: white;
+    }
+    td {
+      padding: 0px;
+    }
+    td:last-child{
+      text-align: right;
+    }
+  }
 }
 
 
@@ -148,6 +205,10 @@ table.align-middle{
   text-decoration: none!important;
   width: 100%;
   font-weight: 700;
+}
+
+.node-table-label {
+  font-weight: bold;
 }
 
 .card-style-toggle .btn {

@@ -156,15 +156,37 @@ define([
             });
             this.associationModel.saveData();
         },
+        validate: function(){
+            var errors = [];
+            this.appendErrors(errors, this.generalInfo.validate());
+            this.appendErrors(errors, this.serviceInfo.validate());
+            this.appendErrors(errors, this.organizationInfo.validate());
+            this.appendErrors(errors, this.contactInfo.validate());
+            this.appendErrors(errors, this.contentInfo.validate());
+            if(errors.length > 0){
+                return errors;
+            }
+            //no errors save data to dataModel
+            this.saveData();
+        },
+        appendErrors: function(errorArray,errors){
+          if(errors){
+              _.each(errors, function(error){
+                 errorArray.push(error);
+              });
+          }
+        },
+        sync: function () {
 
-        save: function () {
             var deferred = $.Deferred();
             var model = this;
             var mbean = 'org.codice.ddf.registry:type=FederationAdminMBean';
             var operation = 'updateLocalEntry(java.util.Map)';
             var url = this.updateUrl;
             var curId = model.get('id');
+            model.addOperation = false;
             if (curId === 'temp-id') {
+                model.addOperation = true;
                 operation = 'createLocalEntry(java.util.Map)';
                 url = this.createUrl;
                 model.unset("id", {silent: true});
@@ -184,16 +206,10 @@ define([
                 data: data,
                 url: url
             }).done(function (result) {
-                console.log(result);
-                if (curId === 'temp-id') {
-                    wreqr.vent.trigger('nodeAdded');
-                }
                 deferred.resolve(result);
             }).fail(function (error) {
-                console.log(error);
                 deferred.fail(error);
             });
-
         },
         getObjectOfType: function (type) {
             var foundObjects = [];
@@ -220,6 +236,7 @@ define([
 
         parse: function (raw) {
             FieldDescriptors.customSlots = raw.value.customSlots;
+            FieldDescriptors.autoPopulateValues = raw.value.autoPopulateValues;
             return raw.value.localNodes;
         },
         deleteNodes: function (nodes) {

@@ -55,6 +55,16 @@
         </div>
 
         <div class="modal-footer">
+            {{#if validationErrors}}
+                <div class="error-list">
+                    <label class="validation-error-text">Input validation errors. Please correct before saving.</label>
+                </div>
+            {{/if}}
+            {{#if saveErrors}}
+                <div class="error-list">
+                    <label class="validation-error-text">Saving data to server failed.</label>
+                </div>
+            {{/if}}
             <div class="btn-group">
                 {{#is mode 'edit'}}
                     <button type="button" class="btn btn-primary submit-button">Save</button>

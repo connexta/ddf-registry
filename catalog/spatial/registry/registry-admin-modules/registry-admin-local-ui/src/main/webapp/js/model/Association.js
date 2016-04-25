@@ -19,11 +19,12 @@ define([
     'underscore',
     'js/model/FieldDescriptors.js',
     'js/model/Segment.js',
+    'wreqr',
     'jquery',
     'backboneassociation'
 
 
-], function (Backbone, _, FieldDescriptors, Segment) {
+], function (Backbone, _, FieldDescriptors, Segment, wreqr) {
 
     var counter = 0;
 
@@ -54,7 +55,8 @@ define([
             sourceId: undefined,
             sourceName: undefined,
             targetId: undefined,
-            targetName: undefined
+            targetName: undefined,
+            targetType: undefined
         },
         populateFromModel: function (association, topLevelSegment) {
             if (association) {
@@ -65,6 +67,7 @@ define([
             }
             var sourceSeg = getSegmentModel(topLevelSegment, this.get('sourceId'));
             var targetSeg = getSegmentModel(topLevelSegment, this.get('targetId'));
+            this.set('targetType', targetSeg.get('segmentType'));
             this.set('sourceName', sourceSeg.constructTitle ? sourceSeg.constructTitle() : sourceSeg.getField('Name').get('value'));
             this.set('targetName', targetSeg.constructTitle ? targetSeg.constructTitle() : targetSeg.getField('Name').get('value'));
         }
@@ -138,20 +141,28 @@ define([
             this.get('associations').remove(removedAssociation);
             return removedAssociation;
         },
-        removeSegment: function (id) {
+        removeSegment: function (segment) {
+            var model = this;
             var updatedAssociations = [];
             var associations = this.get('associations').models;
+            var segId = segment.get('segmentId');
             _.each(associations, function (association) {
-                if (association.get('sourceId') !== id && association.get('targetId') !== id) {
+                if (association.get('sourceId') !== segId && association.get('targetId') !== segId) {
                     updatedAssociations.push(association);
                 }
             });
             this.set('associations', updatedAssociations);
 
             var seg = _.find(this.get('associationSegments').models, function (seg) {
-                return seg.get('segmentId') === id;
+                return seg.get('segmentId') === segId;
             });
             this.get('associationSegments').remove(seg);
+            _.each(segment.get('segments').models, function(curSeg){
+               if(FieldDescriptors.isCustomizableSegment(curSeg.get('segmentType'))){
+                   model.removeSegment(curSeg);
+               }
+            });
+            wreqr.vent.trigger('associationSegmentRemoved',segId);
         },
         getAssociationsForId: function (id) {
             var associations = this.get('associations').models;
@@ -199,11 +210,14 @@ define([
             }
         },
         addAssociationSegment: function(id, type, name){
-            this.get('associationSegments').add(new Association.SegmentId({
-                segmentId: id,
-                segmentType: type,
-                segmentName: name
-            }));
+            if(FieldDescriptors.isCustomizableSegment(type)) {
+                this.get('associationSegments').add(new Association.SegmentId({
+                    segmentId: id,
+                    segmentType: type,
+                    segmentName: name
+                }));
+                wreqr.vent.trigger('associationSegmentAdded', id);
+            }
         },
         saveData: function () {
             var data = this.dataModel;

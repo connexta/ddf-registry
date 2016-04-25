@@ -84,6 +84,7 @@ import ddf.catalog.data.Attribute;
 import ddf.catalog.data.Metacard;
 import ddf.catalog.data.Result;
 import ddf.catalog.data.impl.AttributeImpl;
+import ddf.catalog.endpoint.CatalogEndpoint;
 import ddf.catalog.federation.FederationException;
 import ddf.catalog.operation.CreateRequest;
 import ddf.catalog.operation.CreateResponse;
@@ -147,6 +148,10 @@ public class FederationAdmin implements FederationAdminMBean {
 
     private static final String TRANSIENT_VALUES_KEY = "TransientValues";
 
+    private static final String AUTO_POPULATE_VALUES_KEY = "autoPopulateValues";
+
+    private static final String SERVICE_BINDINGS_KEY = "ServiceBinding";
+
     private static final String CUSTOM_SLOTS_KEY = "customSlots";
 
     private static final String KARAF_ETC = "karaf.etc";
@@ -174,6 +179,8 @@ public class FederationAdmin implements FederationAdminMBean {
     private Map<String, CatalogStore> catalogStoreMap;
 
     private Map<String, Object> customSlots;
+
+    private Map<String, Map<String, String>> endpointMap = new HashMap<>();
 
     public FederationAdmin(ConfigurationAdmin configurationAdmin) {
         configureMBean();
@@ -348,6 +355,10 @@ public class FederationAdmin implements FederationAdminMBean {
         if (customSlots != null) {
             localNodes.put(CUSTOM_SLOTS_KEY, customSlots);
         }
+
+        Map<String, Object> autoPopulateMap = new HashMap<>();
+        autoPopulateMap.put(SERVICE_BINDINGS_KEY, endpointMap.values());
+        localNodes.put(AUTO_POPULATE_VALUES_KEY, autoPopulateMap);
 
         localNodes.put("localNodes", registryWebMaps);
 
@@ -662,7 +673,7 @@ public class FederationAdmin implements FederationAdminMBean {
                 Attribute transientAttribute = metacard.getAttribute(transientAttributeKey);
 
                 if (transientAttribute != null) {
-                    transientValuesMap.put(transientAttributeKey, transientAttribute.getValue());
+                    transientValuesMap.put(transientAttributeKey, transientAttribute.getValues());
                 }
             }
         }
@@ -783,6 +794,32 @@ public class FederationAdmin implements FederationAdminMBean {
                         e);
             }
         }
+    }
+
+    public void bindEndpoint(ServiceReference reference) {
+        BundleContext context = getContext();
+        if (reference != null && context != null) {
+            CatalogEndpoint endpoint = (CatalogEndpoint) context.getService(reference);
+            Map<String, String> properties = endpoint.getEndpointProperties();
+            endpointMap.put(properties.get(CatalogEndpoint.ID_KEY), properties);
+        }
+    }
+
+    public void unbindEndpoint(ServiceReference reference) {
+        BundleContext context = getContext();
+        if (reference != null && context != null) {
+            CatalogEndpoint endpoint = (CatalogEndpoint) context.getService(reference);
+            Map<String, String> properties = endpoint.getEndpointProperties();
+            endpointMap.remove(properties.get(CatalogEndpoint.ID_KEY));
+        }
+    }
+
+    protected BundleContext getContext() {
+        Bundle bundle = FrameworkUtil.getBundle(FederationAdmin.class);
+        if (bundle != null) {
+            return bundle.getBundleContext();
+        }
+        return null;
     }
 
     protected AdminRegistryHelper getAdminRegistryHelper(ConfigurationAdmin configurationAdmin) {

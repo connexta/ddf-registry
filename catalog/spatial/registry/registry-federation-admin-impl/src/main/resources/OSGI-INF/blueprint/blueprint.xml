@@ -41,4 +41,9 @@
                             unbind-method="unbind" ref="catalogStoreMap"/>
     </reference-list>
 
+    <reference-list id="catalogEndpoints" interface="ddf.catalog.endpoint.CatalogEndpoint"
+                    availability="optional">
+        <reference-listener bind-method="bindEndpoint"
+                            unbind-method="unbindEndpoint" ref="federationAdmin"/>
+    </reference-list>
 </blueprint>

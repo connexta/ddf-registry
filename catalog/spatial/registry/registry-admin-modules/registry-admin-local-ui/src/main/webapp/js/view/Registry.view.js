@@ -39,8 +39,9 @@ define([
         RegistryView.RegistryPage = Marionette.Layout.extend({
             template: 'registryPage',
             events: {
-                'click .removeNodeLink' : 'showRemoveNode',
-                'click .addNodeLink' : 'showAddNode'
+                'click .remove-node-link' : 'showRemoveNode',
+                'click .add-node-link' : 'showAddNode',
+                'click .refresh-button' : 'addDeleteNode'
             },
             initialize: function () {
                 this.listenTo(wreqr.vent, 'editNode', this.showEditNode);
@@ -61,18 +62,23 @@ define([
                 modalRegion: '#registry-modal'
             },
             onRender: function() {
-                this.secondaryNodes = [];
-                var i = 1;
-                for (i; i < this.model.models.length; i++) {
-                    this.secondaryNodes.push(this.model.models[i]);
-                }
-                this.identityRegion.show(new RegistryView.NodeTable({collection: new Backbone.Collection(this.model.models[0])}));
+                var view = this;
+                view.secondaryNodes = [];
+                var identityNode;
+                _.each(view.model.models, function(model){
+                    if(model.get('TransientValues') && model.get('TransientValues')['registry-identity-node']){
+                        identityNode = model;
+                    } else {
+                        view.secondaryNodes.push(model);
+                    }
+                });
+                this.identityRegion.show(new RegistryView.NodeTable({collection: new Backbone.Collection(identityNode)}));
                 this.additionalRegion.show(new RegistryView.NodeTable({collection: new Backbone.Collection(this.secondaryNodes), multiValued: true}));
             },
-            showEditNode: function(service) {
+            showEditNode: function(node) {
                 wreqr.vent.trigger("showModal",
                     new NodeModal.View({
-                        model: service,
+                        model: node,
                         mode: 'edit'
                     })
                 );
@@ -96,9 +102,23 @@ define([
                     );
                 }
             },
-            addDeleteNode: function() {
-                this.model.fetch();
-                this.render();
+            addDeleteNode: function () {
+                var view = this;
+                var button = view.$('.refresh-button');
+                if(!button.hasClass('fa-spin')) {
+                    button.addClass('fa-spin');
+                }
+                this.model.fetch({
+                    reset: true,
+                    success: function () {
+                        view.fetchComplete(view);
+                    }
+                });
+            },
+            fetchComplete: function(view){
+                var button = view.$('.refresh-button');
+                button.removeClass('fa-spin');
+                view.render();
             },
             deleteNodes: function(nodeList) {
                 this.model.deleteNodes(nodeList);
@@ -138,8 +158,9 @@ define([
             },
             editNode: function(evt) {
                 evt.stopPropagation();
-                var service = this.model;
-                wreqr.vent.trigger('editNode', service);
+                var node = this.model;
+                //node.refreshData();
+                wreqr.vent.trigger('editNode', node);
             },
             serializeData: function(){
                 var data = {};

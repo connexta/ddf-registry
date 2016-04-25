@@ -7,6 +7,14 @@
             </td>
             {{#if multiValued}}
                 <td>
+                    {{#if autoValues}}
+                        <select class="auto-populate-selector">
+                            <option id="empty" >Empty</option>
+                            {{#each autoValues}}
+                                <option id="{{this.id}}" value="{{this.name}}">{{this.name}}</option>
+                            {{/each}}
+                        </select>
+                    {{/if}}
                     <a href="#" class="add-segment fa fa-plus-square fa-lg plus-button"></a>
                 </td>
             {{/if}}

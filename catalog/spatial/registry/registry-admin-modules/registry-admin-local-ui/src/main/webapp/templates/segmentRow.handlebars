@@ -14,7 +14,7 @@
 <div class="segment">
     {{#if editableSegment}}
         <div data-toggle="collapse" data-target="#{{simpleId}}" class="clickable">
-            <label class="nested-label{{nestedLevel}}">{{title}}</label>
+            <label class="segment-title-{{simpleId}} nested-label{{nestedLevel}}">{{title}}</label>
             <a href="#" class="remove-segment fa fa-minus-square fa-lg minus-button"/>
         </div>
     {{/if}}
@@ -33,27 +33,7 @@
         </table>
 
         {{#if customizable}}
-            <div class="customizable-fields">
-                <div class="customizable-header">
-                    <label class="nested-label2">Custom Fields</label>
-                    <input type="text" class="field-name-{{simpleId}}" name="customName"
-                           placeholder="Field Name">
-                    <select class="field-type-selector-{{simpleId}}">
-                        <option value="string">string</option>
-                        <option value="boolean">boolean</option>
-                        <option value="number">number</option>
-                        <option value="date">date</option>
-                        <option value="point">point</option>
-                        <!--<option value="bounds">bounds</option>-->
-                    </select>
-                    <a href="#" class="add-custom-field fa fa-plus-square fa-lg plus-button"></a>
-                </div>
-                <table class='table align-middle'>
-                    <tbody id="custom-fields-{{simpleId}}" class="custom-fields">
-
-                    </tbody>
-                </table>
-            </div>
+            <div id="customizable-{{simpleId}}"/>
         {{/if}}
 
         {{#if showAssociations}}

@@ -15,7 +15,6 @@
     <div class="association-header">
         <lable class="nested-label2">Associations</lable>
         <select class="association-selector">
-
             {{#each availableAssociation}}
                 <option name="{{this.segmentId}}"
                         value="{{this.segmentName}}">{{this.segmentName}}</option>
@@ -23,7 +22,8 @@
         </select>
         <a href="#" class="add-association fa fa-plus-square fa-lg plus-button"></a>
     </div>
-    <table class='table align-middle'>
+    <label>The following entities are associated with this entity:</label>
+    <table class='association-table table align-middle'>
         <tbody class="association-list">
 
         </tbody>

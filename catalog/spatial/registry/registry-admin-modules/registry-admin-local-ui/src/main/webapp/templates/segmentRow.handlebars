@@ -14,8 +14,16 @@
 <div class="segment">
     {{#if editableSegment}}
         <div data-toggle="collapse" data-target="#{{simpleId}}" class="clickable">
-            <label class="segment-title-{{simpleId}} nested-label{{nestedLevel}}">{{title}}</label>
-            <a href="#" class="remove-segment fa fa-minus-square fa-lg minus-button"/>
+            <table class="segment-header-table">
+                <tr>
+                    <td>
+                        <label class="segment-title-{{simpleId}} nested-label{{nestedLevel}}">{{title}}</label>
+                    </td>
+                    <td>
+                        <a href="#" class="remove-segment fa fa-minus-square fa-lg minus-button"/>
+                    </td>
+                </tr>
+            </table>
         </div>
     {{/if}}
     <div id="{{simpleId}}" class="segment-content {{#if editableSegment}}collapse{{/if}}">

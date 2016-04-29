@@ -138,7 +138,7 @@ define([
             return slot.value[0];
         } else {
             if (type === 'boolean') {
-                return slot.value[0] === 'true' ? true : false;
+                return slot.value === 'true' ? true : false;
             } else if (type === 'point') {
                 return {coords: slot.value.Point.pos.split(/[ ]+/)};
             }

@@ -96,11 +96,6 @@ table.align-middle{
     border-radius: 5px;
     border: black 1px;
   }
-  .remove-segment {
-    display: table-cell;
-    text-align: right;
-    vertical-align: middle;
-  }
   .add-segment {
     padding-left: 10px;
   }
@@ -182,6 +177,12 @@ table.align-middle{
     td {
       padding: 0px;
     }
+    td:last-child{
+      text-align: right;
+    }
+  }
+  .segment-header-table {
+    width: 100%;
     td:last-child{
       text-align: right;
     }

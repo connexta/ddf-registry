@@ -134,7 +134,10 @@ define([
             if (!this.get('isSlot')) {
                 if (this.get('value') && !(_.isArray(this.get('value')) && this.get('value').length === 0)) {
                     dataModel[this.get('key')] = this.get('value');
+                } else if( dataModel[this.get('key')]){
+                    delete dataModel[this.get('key')];
                 }
+
             } else {
                 var slot = getSlot(dataModel.Slot, this.get('key'));
                 var newSlot = false;
@@ -145,6 +148,7 @@ define([
                     };
                     newSlot = true;
                 }
+                slot.value = undefined;
 
                 if (this.get('type') === 'date') {
                     if (this.get('valueDate')) {
@@ -183,7 +187,7 @@ define([
                             values.push(this.get('value' + index));
                         }
                     }
-                    slot.value = values;
+                    slot.value = values.length > 0 ? values : undefined;
                 } else {
                     if (this.get('value')) {
                         slot.value = this.get('value');
@@ -192,6 +196,13 @@ define([
 
                 if (newSlot && slot.value) {
                     dataModel.Slot.push(slot);
+                }
+
+                if (!newSlot && !slot.value) {
+                    var slotIndex = dataModel.Slot.map(function (e) {
+                        return e.name;
+                    }).indexOf(slot.name);
+                    dataModel.Slot.splice(slotIndex, 1);
                 }
             }
         }

@@ -575,6 +575,8 @@ public class FederationAdmin implements FederationAdminMBean {
 
             metacard.setAttribute(new AttributeImpl(RegistryObjectMetacardType.PUBLISHED_LOCATIONS,
                     updatedPublishedLocations));
+            metacard.setAttribute(new AttributeImpl(RegistryObjectMetacardType.LAST_PUBLISHED,
+                    metacard.getModifiedDate()));
             Map<String, Serializable> properties = new HashMap<>();
             properties.put(RegistryConstants.TRANSIENT_ATTRIBUTE_UPDATE, true);
 

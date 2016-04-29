@@ -234,7 +234,7 @@ public class FederationAdminServiceImpl implements FederationAdminService {
         }
 
         Metacard existingMetacard = existingMetacards.get(0);
-
+        boolean transientUpdate = false;
         for (String transientAttributeKey : RegistryObjectMetacardType.TRANSIENT_ATTRIBUTES) {
             Attribute transientAttribute = updateMetacard.getAttribute(transientAttributeKey);
             if (transientAttribute == null) {
@@ -242,12 +242,38 @@ public class FederationAdminServiceImpl implements FederationAdminService {
                 if (transientAttribute != null) {
                     updateMetacard.setAttribute(transientAttribute);
                 }
+            } else {
+                Attribute existingAttribute = existingMetacard.getAttribute(transientAttributeKey);
+                if (existingAttribute == null) {
+                    transientUpdate = true;
+                    continue;
+                }
+                if (transientAttribute.getValues()
+                        .size() != existingAttribute.getValues()
+                        .size()) {
+                    transientUpdate = true;
+                    continue;
+                }
+                for (int i = 0; i < transientAttribute.getValues()
+                        .size(); i++) {
+                    if (!transientAttribute.getValues()
+                            .get(i)
+                            .equals(existingAttribute.getValues()
+                                    .get(i))) {
+                        transientUpdate = true;
+                        break;
+                    }
+                }
             }
         }
 
         Subject systemSubject = security.getSystemSubject();
         Map<String, Serializable> properties = new HashMap<>();
         properties.put(SecurityConstants.SECURITY_SUBJECT, systemSubject);
+
+        if (transientUpdate) {
+            properties.put(RegistryConstants.TRANSIENT_ATTRIBUTE_UPDATE, true);
+        }
 
         List<Map.Entry<Serializable, Metacard>> updateList = new ArrayList<>();
         updateList.add(new AbstractMap.SimpleEntry<>(updateMetacard.getId(), updateMetacard));

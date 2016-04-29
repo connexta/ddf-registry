@@ -71,6 +71,8 @@ public class RegistryObjectMetacardType extends MetacardTypeImpl {
 
     public static final String PUBLISHED_LOCATIONS = "published-locations";
 
+    public static final String LAST_PUBLISHED = "last-published";
+
     public static final String REGISTRY_BASE_URL = "registry-base-url";
 
     public static final String REGISTRY_LOCAL_NODE = "registry-local-node";
@@ -82,7 +84,7 @@ public class RegistryObjectMetacardType extends MetacardTypeImpl {
         transientAttributes.add(REGISTRY_IDENTITY_NODE);
         transientAttributes.add(REGISTRY_LOCAL_NODE);
         transientAttributes.add(PUBLISHED_LOCATIONS);
-
+        transientAttributes.add(LAST_PUBLISHED);
         TRANSIENT_ATTRIBUTES = Collections.unmodifiableSet(transientAttributes);
     }
 
@@ -128,6 +130,7 @@ public class RegistryObjectMetacardType extends MetacardTypeImpl {
         addQueryableBoolean(REGISTRY_LOCAL_NODE, false);
         addQueryableString(REGISTRY_BASE_URL, false);
         addQueryableString(PUBLISHED_LOCATIONS, true);
+        addQueryableDate(LAST_PUBLISHED);
     }
 
     /**

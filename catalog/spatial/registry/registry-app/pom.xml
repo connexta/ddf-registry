@@ -92,6 +92,10 @@
             <artifactId>registry-report-viewer</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.codice.ddf.registry</groupId>
+            <artifactId>registry-publication-update-handler</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

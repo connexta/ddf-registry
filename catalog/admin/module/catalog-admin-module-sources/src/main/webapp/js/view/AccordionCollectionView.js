@@ -22,13 +22,7 @@ define([
     var AccordionCollectionView = {};
 
     AccordionCollectionView = Marionette.CollectionView.extend({
-        itemView: AccordionView,
-        initialize: function(){
-            this.render();
-        },
-        onRender: function(){
-            console.log(this.el);
-        }
+        itemView: AccordionView
     });
 
     return AccordionCollectionView;

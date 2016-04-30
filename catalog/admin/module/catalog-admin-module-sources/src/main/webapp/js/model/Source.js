@@ -204,7 +204,6 @@ function (wreqr, Service, Backbone, _, poller, Status) {
             if (!initialModel) {
                 initialModel = new Source.Model();
             }
-            
             if(serviceCollection) {
                 serviceCollection.each(function(service) {
                     var config = new Service.Configuration({service: service});
@@ -215,8 +214,26 @@ function (wreqr, Service, Backbone, _, poller, Status) {
             initialModel.set('registryId', this.getRegistryIdFromConfigurations(initialModel) );
             return initialModel;
         },
+        /**
+        * Returns the registry-id that corresponds to the given model.
+        */
         getRegistryIdFromConfigurations: function(model){
             var configuration = model.get('currentConfiguration');
+            // If no current configuration or the configuration does not have a registry-id, then the current
+            // Active Binding is disabled. Search through the disabled configurations to find the one that
+            // contains the models registry-id.
+            if(!configuration || !configuration.get('properties').get('registry-id')){
+                var disabledConfigWithRegistryId = model.get('disabledConfigurations').models.find(function(disabledConfig){
+                    if(disabledConfig.get('properties').id){
+                        if(disabledConfig.get('properties').get('registry-id')){
+                            return true;
+                        }
+                    }
+                });
+                if(disabledConfigWithRegistryId){
+                    return disabledConfigWithRegistryId.get('properties').get('registry-id');
+                }
+            }
             if(!configuration && !_.isEmpty(model.get('disableConfigurations'))){
                 configuration = model.get('disabledConfigurations')[0];
             }

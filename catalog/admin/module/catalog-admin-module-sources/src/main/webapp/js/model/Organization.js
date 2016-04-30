@@ -18,12 +18,16 @@ function (Backbone) {
 
     var Organization = {};
 
-    Organization.Model = Backbone.Model.extend({
+    Organization = Backbone.Model.extend({
 
-         name : 'name',
-         address : 'address',
-         phoneNumber : '555-555-5555',
-         emailAddress : 'unknown@user.com',
+    // Defaults set to 'Not Provided' to indicate the software correctly pulled the Organizational Info
+    // but the user did not enter any. N/A was determined to be too vague
+        defaults: {
+            name : 'Not Provided',
+            address : 'Not Provided',
+            phoneNumber : 'Not Provided',
+            emailAddress : 'Not Provided'
+        },
 
         initializeFromOrganization: function(org){
             this.name = org.name;

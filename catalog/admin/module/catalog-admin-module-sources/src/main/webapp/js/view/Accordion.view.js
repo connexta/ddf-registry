@@ -32,17 +32,13 @@ define([
         events: {
             'click .accordion-title': 'toggle'
         },
-        initialize: function(){
-        },
         toggle: function(){
             this.$el.find('.accordion-content').toggleClass('show');
             this.$el.find(".fa-chevron-down, .fa-chevron-up").toggleClass( 'fa-chevron-down fa-chevron-up');
         },
         onRender: function(){
             this.accordionContent.show(this.model.get('contentView'));
-            console.log(this.el);
         }
     });
-
     return AccordionView;
 });

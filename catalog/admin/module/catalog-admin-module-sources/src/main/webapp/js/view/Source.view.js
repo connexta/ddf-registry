@@ -68,6 +68,9 @@ function (ich,Marionette,_,$,Q,ModalSource,EmptyView,Service,Status,wreqr,Utils,
             if(this.model && this.model.has('currentConfiguration')){
                 data.currentConfiguration = this.model.get('currentConfiguration').toJSON();
             }
+//            else{
+//                data.currentConfiguration = undefined;
+//            }
             if(this.model && this.model.has('disabledConfigurations')){
                 data.disabledConfigurations = this.model.get('disabledConfigurations').toJSON();
             }

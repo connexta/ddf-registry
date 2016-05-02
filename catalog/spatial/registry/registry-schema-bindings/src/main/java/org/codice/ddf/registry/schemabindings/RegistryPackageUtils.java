@@ -147,6 +147,17 @@ public final class RegistryPackageUtils {
         return slotMap;
     }
 
+    public static Map<String, List<SlotType1>> getNameSlotMapWithMultipleValues(List<SlotType1> slots) {
+        Map<String, List<SlotType1>> slotMap = new HashMap<>();
+
+        for (SlotType1 slot : slots) {
+            slotMap.putIfAbsent(slot.getName(), new ArrayList<>());
+            slotMap.get(slot.getName()).add(slot);
+        }
+
+        return slotMap;
+    }
+
     public static List<String> getSlotStringAttributes(SlotType1 slot) {
         List<String> slotAttributes = new ArrayList<>();
 

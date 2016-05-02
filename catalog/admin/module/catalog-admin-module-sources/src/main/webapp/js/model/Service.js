@@ -143,23 +143,21 @@ define(function(require) {
                 dataType: 'json'
             });
         },
-        publishMyselfTo: function(idToPublishFrom, idsToPublishTo){
-            if (idsToPublishTo.length > 0) {
-                var data = {
-                    type: 'EXEC',
-                    mbean: "org.codice.ddf.registry:type=FederationAdminMBean",
-                    operation: "updatePublications",
-                    arguments: [idToPublishFrom, idsToPublishTo]
-                };
-                data = JSON.stringify(data);
-                $.ajax({
-                    type: 'POST',
-                    url: "/jolokia/exec/org.codice.ddf.registry:type=FederationAdminMBean/updatePublications",
-                    data: data
-                }).fail(function(error) {
-                    console.log(error);
-                });
-            }
+        publishMyselfTo: function(idToPublishFrom, idsToPublishTo) {
+            var data = {
+                type: 'EXEC',
+                mbean: "org.codice.ddf.registry:type=FederationAdminMBean",
+                operation: "updatePublications",
+                arguments: [idToPublishFrom, idsToPublishTo]
+            };
+            data = JSON.stringify(data);
+            $.ajax({
+                type: 'POST',
+                url: "/jolokia/exec/org.codice.ddf.registry:type=FederationAdminMBean/updatePublications",
+                data: data
+            }).fail(function(error) {
+                console.log(error);
+            });
         },
         /**
          * When a model calls save the sync is called in Backbone.  I override it because this isn't a typical backbone

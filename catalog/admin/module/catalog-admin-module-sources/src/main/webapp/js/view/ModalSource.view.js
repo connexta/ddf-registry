@@ -79,60 +79,26 @@ define([
             data.mode = this.mode;
             //Mark this data as a registry by populating isRegistry with its registry uuid
             data.isRegistry = this.model.get('registryId');
-            if(data.isRegistry){
-                //Gather registry information about the available registries including whether or not the registry has been published to
-                data.availableRegistries = this.getAvailableRegistries(this.source.get('model').registryMetacards, this.model.id);
+            if (data.isRegistry) {
+                //Gather registry information about the available registries
+                data.availableRegistries = this.getAvailableRegistries(this.source.get('model').registryService);
             }
             return data;
         },
         /**
-         * Returns information about the available registries including the field alreadyPublishedTo
-         * which indicates if a registry node has already published to a specific registry
+         * Returns information about which registries are available to this model (note: alreadyPublishedTo field added to track
+         * if a source has been previously published to. This field is for next iteration and is not in a useable state)
          *
          */
-        getAvailableRegistries: function(registryMetacards, modelId){
-            var registryIdsToPublishTo = this.getRegistryIdsToPublishTo(registryMetacards, modelId);
-            var allRegistries = [];
-            if (this.source.get('model').registryService) {
-                var registryConfigurations = this.source.get('model').registryService.get('value')[0].configurations;
-                _.each(registryConfigurations, function(registry) {
-                    var regToAdd = {};
-                    regToAdd.name = registry.properties.id;
-                    regToAdd.alreadyPublishedTo = false;
-                    allRegistries.push(regToAdd);
-                });
-            allRegistries.forEach(function(availableRegistry) {
-                registryIdsToPublishTo.forEach(function(toPublishTo) {
-                    if (availableRegistry.name === toPublishTo) {
-                        availableRegistry.alreadyPublishedTo = true;
-                    }
-                }.bind(this));
-            }.bind(this));
-            }
-            return allRegistries;
-        },
-        /**
-         * Returns a list of Id's that this models corresponding registry node should be published to.
-         * Returns empty if the source being checked is not a registry or if the registry being checked
-         * is being published to no one
-         * @param arrayOfRegistryMetacards, currentModelId
-         */
-        getRegistryIdsToPublishTo: function(arrayOfRegistryMetacards, currentModelId) {
-            var listToPublishTo = [];
-            arrayOfRegistryMetacards.get('value').forEach(function(regObj) {
-                if (regObj.RegistryObjectList.ExtrinsicObject[0].Name === currentModelId) {
-                    if (regObj.TransientValues) {
-                        if (_.isArray(regObj.TransientValues)) {
-                            regObj.TransientValues.forEach(function(node) {
-                                listToPublishTo.push(node['published-locations']);
-                            }.bind(this));
-                        } else {
-                            listToPublishTo.push(regObj.TransientValues['published-locations']);
-                        }
-                    }
-                }
-            }.bind(this));
-            return listToPublishTo;
+        getAvailableRegistries: function(registryServices) {
+            var availableRegistries = [];
+            registryServices.get("value").forEach(function(service) {
+                var regToAdd = {};
+                regToAdd.name = service.configurations[0].properties.id;
+                regToAdd.alreadyPublishedTo = false;
+                availableRegistries.push(regToAdd);
+            });
+            return availableRegistries;
         },
         /**
          * Initialize  the binder with the ManagedServiceFactory model.
@@ -200,8 +166,8 @@ define([
             $sourceTypeSelect.val(configs.at(0).get('id')).change();
         },
         /**
-        * Uses the current context's model to return a Backbone collection of all configurations service's
-        */
+         * Uses the current context's model to return a Backbone collection of all configurations service's
+         */
         getAllConfigServices: function() {
             var configs = new Backbone.Collection();
             var disabledConfigs = this.model.get('disabledConfigurations');
@@ -226,79 +192,39 @@ define([
             wreqr.vent.trigger('beforesave');
             var view = this;
             var configs = this.getAllConfigsWithServices();
-//            view.model.attributes.currentConfiguration = undefined;
+            configs.forEach(function(config) {
+                var service = config;
 
-            configs.forEach(function(config){
-//            var service = view.model.get('editConfig');
-            var service = config;
-
-
-
-
-
-            if (service) {
-                var fpid = service.get("fpid");
-                var idx = fpid.indexOf("_disabled");
-                if (idx > 0) {
-                    service.set("fpid", fpid.substring(0, idx));
-                }
-                if (_.isUndefined(service.get('properties').id)) {
-                    var name = view.$(".sourceName").find('input').val().trim();
-                    view.setConfigName(service, name);
-                }
-                if(view.model.get('registryId')){
+                if (service) {
+                    var idToPublishFrom = "";
                     var idsToPublishTo = [];
-                    var $checkboxArray = $(':checkbox:checked');
-                    $.each($checkboxArray, function() {
-                    idsToPublishTo.push(view.value);
-                });
-                var idToPublishFrom = view.model.get('registryId');
-                }
-                service.save().then(function(response) {
-                        //Since saving was successful, make publish call
-                        //This avoids publishing if any error occurs in service.save()
-                        service.publishMyselfTo(idToPublishFrom, idsToPublishTo);
-
-                        // check to see if the service corresponds to an existing source
-                        // if it does, return the source
-                        var existingSource = view.source.get('collection').find(function(item) {
-                            var config = item.get('currentConfiguration');
-                            return (config && config.get('properties').id === service.get('properties').id);
+                    if (_.isUndefined(service.get('properties').id)) {
+                        var name = view.$(".sourceName").find('input').val().trim();
+                        view.setConfigName(service, name);
+                    }
+                    if (view.model.get('registryId')) {
+                        var $checkboxArray = $(':checkbox:checked');
+                        _.each($checkboxArray, function(checkbox) {
+                            idsToPublishTo.push(checkbox.value);
                         });
-
-                        // Logic to check if the service we are adding is going to be a member of an already existing source;
-                        // if it is, we need to disable the new service as soon at is created.
-                        if (existingSource && view.mode === 'add' && existingSource.get('currentConfiguration') !== service) {
-
-                            // https://codice.atlassian.net/browse/DDF-1642
-                            // this works around an issue in json-simple where the .toString() of an array
-                            // is returned in the arguments field of configs with array attributes,
-                            // causing the JSON string from jolokia to be unparseable, so we remove it,
-                            // since we don't care about the arguments for our parsing needs
-
-                            response = response.replace(/\[L[\w\.;@]*/g, '""');
-                            var jsonResult = JSON.parse(response.toString().trim());
-
-                            // Since the source we are editing has a currentConfig already, we don't want to disable it.
-                            // Using the response from the creation of the new service, disable the newly created service
-                            // with a call to makeDisableCallByPid.
-
-                            Service.Configuration.prototype.makeDisableCallByPid(jsonResult.request['arguments'][0]).done(function() {
-                                wreqr.vent.trigger('refreshSources');
-                                view.closeAndUnbind();
-                            });
-                        } else {
+                        idToPublishFrom = view.model.get('registryId');
+                    }
+                    service.save().then(function() {
+                            // Since saving was successful, make publish call
+                            // This avoids publishing if any error occurs in service.save()
+                            if (idsToPublishTo) {
+                                service.publishMyselfTo(idToPublishFrom, idsToPublishTo);
+                            }
                             wreqr.vent.trigger('refreshSources');
                             view.closeAndUnbind();
-                        }
-                    },
+                        },
 
-                    function() {
-                        wreqr.vent.trigger('refreshSources');
-                    }).always(function() {
-                    view.closeAndUnbind();
-                });
-            }
+                        function() {
+                            wreqr.vent.trigger('refreshSources');
+                        }).always(function() {
+                        view.closeAndUnbind();
+                    });
+                }
             });
         },
         sourceNameChanged: function(evt) {
@@ -326,7 +252,7 @@ define([
                     view.showError('A configuration with the name "' + newName + '" already exists. Please choose another name.');
                 }
             } else {
-                //model name was reverted back to original value
+                // model name was reverted back to original value
                 view.clearError();
             }
         },
@@ -389,8 +315,8 @@ define([
                 matchFound = true;
             } else if (!_.isUndefined(disabledConfigs)) {
                 matchFound = !_.isUndefined(disabledConfigs.find(function(modelDisableConfig) {
-                    //check the ID property to ensure that the config we're checking exists server side
-                    //otherwise assume it's a template/placeholder for filling in the default modal form data
+                    // check the ID property to ensure that the config we're checking exists server side
+                    // otherwise assume it's a template/placeholder for filling in the default modal form data
                     if (_.isUndefined(modelDisableConfig.id)) {
                         return false;
                     } else {
@@ -400,7 +326,7 @@ define([
             }
             return matchFound;
         },
-        //should be able to remove this method when the 'shortname' is removed from existing source metatypes
+        // should be able to remove this method when the 'shortname' is removed from existing source metatypes
         getId: function(config) {
             var properties = config.get('properties');
             return properties.get('shortname') || properties.get('id');
@@ -410,7 +336,7 @@ define([
             this.$el.modal("hide");
         },
         /**
-         * unbind the model and dom during close.
+         * Unbind the model and dom during close.
          */
         onClose: function() {
             this.modelBinder.unbind();
@@ -418,10 +344,10 @@ define([
         cancel: function() {
             this.closeAndUnbind();
         },
-       /**
-        *  Called when the activebinding dropdown is changed and also when the source
-        *  modal is first created.
-        */
+        /**
+         *  Called when the activebinding dropdown is changed and also when the source
+         *  modal is first created.
+         */
         handleTypeChange: function(evt) {
             var view = this;
             var $select = this.$(evt.currentTarget);
@@ -496,102 +422,102 @@ define([
                 return "N/A";
             }
         },
-       /**
-        *  Given a registry metacard with organizational information, collects the organizational infomation
-        * and returns a model representing it.
-        */
-        getOrganizationModel: function(registryMetacard){
+        /**
+         * Given a registry metacard with organizational information, collects the organizational infomation
+         * and returns a model representing it.
+         */
+        getOrganizationModel: function(registryMetacard) {
             var orgInfo = {};
-                if (registryMetacard.RegistryObjectList.Organization) {
-                    if (registryMetacard.RegistryObjectList.Organization[0]) {
-                        if (registryMetacard.RegistryObjectList.Organization[0].Address) {
-                            orgInfo.address = this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].Address[0], "city", "") + " ";
-                            orgInfo.address += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].Address[0], "stateOrProvince", "") + " ";
-                            orgInfo.address += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].Address[0], "country", "") + " ";
-                            orgInfo.address += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].Address[0], "postalCode", "");
+            if (registryMetacard.RegistryObjectList.Organization) {
+                if (registryMetacard.RegistryObjectList.Organization[0]) {
+                    if (registryMetacard.RegistryObjectList.Organization[0].Address) {
+                        orgInfo.address = this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].Address[0], "city", "") + " ";
+                        orgInfo.address += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].Address[0], "stateOrProvince", "") + " ";
+                        orgInfo.address += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].Address[0], "country", "") + " ";
+                        orgInfo.address += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].Address[0], "postalCode", "");
+                    }
+                    if (registryMetacard.RegistryObjectList.Organization[0].Name) {
+                        orgInfo.name = this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0], "Name", "");
+                    }
+                    if (registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber) {
+                        orgInfo.phoneNumber = this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0], "countryCode", "?") + "-";
+                        orgInfo.phoneNumber += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0], "areaCode", "???") + "-";
+                        orgInfo.phoneNumber += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0], "number", "???????");
+                        if (registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0].extension) {
+                            orgInfo.phoneNumber += " ext. ";
+                            orgInfo.phoneNumber += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0], "extension", "???????");
                         }
-                        if (registryMetacard.RegistryObjectList.Organization[0].Name) {
-                            orgInfo.name = this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0], "Name", "");
-                        }
-                        if (registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber) {
-                            orgInfo.phoneNumber = this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0], "countryCode", "?") + "-";
-                            orgInfo.phoneNumber += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0], "areaCode", "???") + "-";
-                            orgInfo.phoneNumber += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0], "number", "???????");
-                            if (registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0].extension) {
-                                 orgInfo.phoneNumber += " ext. ";
-                                 orgInfo.phoneNumber += this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0], "extension", "???????");
-                            }
-                            orgInfo.phoneNumber += " (" + this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0], "phoneType", "Contact") + ")";
-                        }
-                        if (registryMetacard.RegistryObjectList.Organization[0].EmailAddress) {
-                            orgInfo.emailAddress = this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].EmailAddress[0], "address", "N/A");
-                            orgInfo.emailAddress += " (" + this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].EmailAddress[0], "type", "Contact") + ")";
-                        }
+                        orgInfo.phoneNumber += " (" + this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0], "phoneType", "Contact") + ")";
+                    }
+                    if (registryMetacard.RegistryObjectList.Organization[0].EmailAddress) {
+                        orgInfo.emailAddress = this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].EmailAddress[0], "address", "N/A");
+                        orgInfo.emailAddress += " (" + this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].EmailAddress[0], "type", "Contact") + ")";
                     }
                 }
-        return new Organization(orgInfo);
-    },
-    renderDetails: function(configuration) {
-        var service = configuration.get('service');
-        if (!_.isUndefined(service)) {
-            //If this source being edited is a registry
-            if (this.model.get('editConfig').get('properties').get('registry-id')) {
-                //Since this is a registry, if edit mode, populate the organizational info
-                if (this.mode === 'edit') {
-                    var orgModel = new Organization();
-                    //find the metacard that corresponds to the current model and extract it's organizational info (if it has any)
-                    this.source.get('model').registryMetacards.get('value').forEach(function(regObj) {
-                        if (this.model.get('registryId') === regObj.id || this.model.get('editConfig').get('properties').get('registry-id') === regObj.id) {
-                            orgModel = this.getOrganizationModel(regObj);
-                        }
-                    }.bind(this));
-                    var orgViewInstance = new OrganizationView({
-                        model: orgModel
-                    });
-                    this.organizationInfo.show(orgViewInstance);
-                }
             }
-            //Make an accordionCollection to hold the accordions. Uses AccordionView as it's itemView
-            var accordionCollection = new AccordionCollection();
-            var configsWithServices = this.getAllConfigsWithServices();
-            //For each configuration, make an accordion consisting of a ConfigurationEdit.ConfigurationCollection that
-            //is populated with ConfigurationEdit.ConfigurationItem's
-            configsWithServices.forEach(function(curConfig) {
-                var accordionFieldsToDisplay;
-                //Use the curConfig's service to gather all fields to display in the accordion
-                var curConfigService = curConfig.get('service');
-                if (!_.isUndefined(curConfigService)) {
-                    accordionFieldsToDisplay = curConfigService.get('metatype').filter(function(mt) {
-                        return !_.contains(['shortname', 'id'], mt.get('id'));
-                    });
+            return new Organization(orgInfo);
+        },
+        renderDetails: function(configuration) {
+            var service = configuration.get('service');
+            if (!_.isUndefined(service)) {
+                // If this source being edited is a registry
+                if (this.model.get('editConfig').get('properties').get('registry-id')) {
+                    // Since this is a registry, if edit mode, populate the organizational info
+                    if (this.mode === 'edit') {
+                        var orgModel = new Organization();
+                        // find the metacard that corresponds to the current model and extract it's organizational info (if it has any)
+                        this.source.get('model').registryMetacards.get('value').forEach(function(regObj) {
+                            if (this.model.get('registryId') === regObj.id || this.model.get('editConfig').get('properties').get('registry-id') === regObj.id) {
+                                orgModel = this.getOrganizationModel(regObj);
+                            }
+                        }.bind(this));
+                        var orgViewInstance = new OrganizationView({
+                            model: orgModel
+                        });
+                        this.organizationInfo.show(orgViewInstance);
+                    }
                 }
+                // Make an accordionCollection to hold the accordions. Uses AccordionView as it's itemView
+                var accordionCollection = new AccordionCollection();
+                var configsWithServices = this.getAllConfigsWithServices();
+                // For each configuration, make an accordion consisting of a ConfigurationEdit.ConfigurationCollection that
+                // is populated with ConfigurationEdit.ConfigurationItem's
+                configsWithServices.forEach(function(curConfig) {
+                    var accordionFieldsToDisplay;
+                    // Use the curConfig's service to gather all fields to display in the accordion
+                    var curConfigService = curConfig.get('service');
+                    if (!_.isUndefined(curConfigService)) {
+                        accordionFieldsToDisplay = curConfigService.get('metatype').filter(function(mt) {
+                            return !_.contains(['shortname', 'id'], mt.get('id'));
+                        });
+                    }
 
-                var collectionToDisplay = new Service.MetatypeList(accordionFieldsToDisplay);
-                var nameToDisplay = curConfig.get('name');
-                //Check if name is in fpid format and if so, clean up the nameToDisplay
-                if(nameToDisplay.includes('_disabled')){
-                    nameToDisplay = nameToDisplay.substring(0, nameToDisplay.indexOf('_disabled'));
-                    nameToDisplay = nameToDisplay.replace(/_/g, ' ');
-                }
-                accordionCollection.add({
-                    title: nameToDisplay,
-                    contentView: new ConfigurationEdit.ConfigurationCollection({
-                        collection: collectionToDisplay,
-                        service: curConfigService,
-                        configuration: curConfig
-                    })
-                });
-            }.bind(this));
-            //Add the accordions to the accordions region of the modal
-            this.accordions.show(new AccordionCollectionView({
-                collection: accordionCollection
-            }));
-        }else {
-           this.$(this.organizationInfo.el).html('');
-           this.$(this.details.el).html('');
-           this.$(this.buttons.el).html('');
+                    var collectionToDisplay = new Service.MetatypeList(accordionFieldsToDisplay);
+                    var nameToDisplay = curConfig.get('name');
+                    // Check if name is in fpid format and if so, clean up the nameToDisplay
+                    if (nameToDisplay.includes('_disabled')) {
+                        nameToDisplay = nameToDisplay.substring(0, nameToDisplay.indexOf('_disabled'));
+                        nameToDisplay = nameToDisplay.replace(/_/g, ' ');
+                    }
+                    accordionCollection.add({
+                        title: nameToDisplay,
+                        contentView: new ConfigurationEdit.ConfigurationCollection({
+                            collection: collectionToDisplay,
+                            service: curConfigService,
+                            configuration: curConfig
+                        })
+                    });
+                }.bind(this));
+                // Add the accordions to the accordions region of the modal
+                this.accordions.show(new AccordionCollectionView({
+                    collection: accordionCollection
+                }));
+            } else {
+                this.$(this.organizationInfo.el).html('');
+                this.$(this.details.el).html('');
+                this.$(this.buttons.el).html('');
+            }
         }
-    }
-});
-return ModalSource;
+    });
+    return ModalSource;
 });

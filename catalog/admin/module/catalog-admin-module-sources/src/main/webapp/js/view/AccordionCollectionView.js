@@ -14,9 +14,9 @@
  **/
 /*global define*/
 define([
-        'js/view/Accordion.view.js',
-        'marionette'
-        ],function (AccordionView, Marionette) {
+    'js/view/Accordion.view.js',
+    'marionette'
+], function(AccordionView, Marionette) {
 
 
     var AccordionCollectionView = {};

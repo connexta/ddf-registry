@@ -121,7 +121,12 @@ define([
             _.each(this.collectionArray.models, function(model) {
                 values.push(model.get('value'));
             });
-            this.configuration.get('configurations').models[0].get('properties').set(this.model.get('id'), values);
+            if (this.configuration.get('configurations')) {
+                this.configuration.get('configurations').models[0].get('properties').set(this.model.get('id'), values);
+            } else {
+                this.configuration.get('properties').set(this.model.get('id'), values);
+            }
+
         },
         onRender: function() {
             this.listItems.show(new ConfigurationEditView.ConfigurationMultiValueCollection({

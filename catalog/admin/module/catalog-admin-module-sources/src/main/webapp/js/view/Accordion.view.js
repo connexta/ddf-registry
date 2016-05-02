@@ -14,14 +14,14 @@
  **/
 /*global define*/
 define([
-        'marionette',
-        'icanhaz',
-        'js/view/Accordion.view.js',
-        'text!templates/accordion.hbs'
-        ],function (Marionette, ich, AccordionView, accordion) {
-        if (!ich.accordion) {
-            ich.addTemplate('accordion', accordion);
-        }
+    'marionette',
+    'icanhaz',
+    'js/view/Accordion.view.js',
+    'text!templates/accordion.hbs'
+], function(Marionette, ich, AccordionView, accordion) {
+    if (!ich.accordion) {
+        ich.addTemplate('accordion', accordion);
+    }
 
     AccordionView = Marionette.Layout.extend({
         template: 'accordion',
@@ -32,11 +32,11 @@ define([
         events: {
             'click .accordion-title': 'toggle'
         },
-        toggle: function(){
+        toggle: function() {
             this.$el.find('.accordion-content').toggleClass('show');
-            this.$el.find(".fa-chevron-down, .fa-chevron-up").toggleClass( 'fa-chevron-down fa-chevron-up');
+            this.$el.find(".fa-chevron-down, .fa-chevron-up").toggleClass('fa-chevron-down fa-chevron-up');
         },
-        onRender: function(){
+        onRender: function() {
             this.accordionContent.show(this.model.get('contentView'));
         }
     });

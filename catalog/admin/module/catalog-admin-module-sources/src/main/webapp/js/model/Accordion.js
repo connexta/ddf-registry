@@ -14,14 +14,14 @@
  **/
 /*global define*/
 define([
-    'backbone'
-],
-function (Backbone) {
+        'backbone'
+    ],
+    function(Backbone) {
 
-    return Backbone.Model.extend({
+        return Backbone.Model.extend({
             defaults: {
                 contentView: undefined,
                 title: 'Default Title'
             }
+        });
     });
-});

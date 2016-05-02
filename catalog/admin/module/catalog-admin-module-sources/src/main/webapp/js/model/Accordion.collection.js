@@ -14,12 +14,12 @@
  **/
 /*global define*/
 define([
-    'backbone',
-    'js/model/Accordion.js'
-],
-function (Backbone, Accordion) {
+        'backbone',
+        'js/model/Accordion.js'
+    ],
+    function(Backbone, Accordion) {
 
-    return Backbone.Collection.extend({
+        return Backbone.Collection.extend({
             model: Accordion
+        });
     });
-});

@@ -10,26 +10,27 @@
  *
  **/
 /*global define*/
-
 // #Main Application
 define([
     'underscore',
     'backbone',
     'marionette',
     'icanhaz'
-    ],function (_, Backbone, Marionette, ich) {
+], function(_, Backbone, Marionette, ich) {
     'use strict';
 
     var Application = {};
 
     // This was moved from the main.js file into here.
     // Since this modules has ui components, and it gets loaded before main.js, we need to init the renderer here for now until we sort this out.
-    Marionette.Renderer.render = function (template, data) {
-        if(!template){return '';}
+    Marionette.Renderer.render = function(template, data) {
+        if (!template) {
+            return '';
+        }
         return ich[template](data);
     };
 
-    
+
 
     Application.App = new Marionette.Application();
 
@@ -38,7 +39,7 @@ define([
         mainRegion: 'main'
     });
 
-   
+
 
     return Application;
 });

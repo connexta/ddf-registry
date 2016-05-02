@@ -13,19 +13,21 @@
  *
  **/
 /*global define*/
-define(['backbone'],
-    function(Backbone) {
+define([
+    'icanhaz',
+    'marionette',
+    'text!templates/sourceOrganization.hbs'
+], function(ich, Marionette, sourceOrganization) {
 
-        var Status = {};
+    if (!ich.sourceOrganization) {
+        ich.addTemplate('sourceOrganization', sourceOrganization);
+    }
 
-        Status.Model = Backbone.Model.extend({
-            url: "/jolokia/exec/org.codice.ddf.catalog.admin.poller.AdminPollerServiceBean:service=admin-source-poller-service/sourceStatus/",
-            model: Status.Model,
+    var OrganizationView = {};
 
-            initialize: function(pid) {
-                this.url += pid;
-            }
-        });
-
-        return Status;
+    OrganizationView = Marionette.ItemView.extend({
+        template: 'sourceOrganization'
     });
+
+    return OrganizationView;
+});

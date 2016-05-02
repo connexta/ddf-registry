@@ -13,19 +13,15 @@
  *
  **/
 /*global define*/
-define(['backbone'],
+define([
+        'backbone'
+    ],
     function(Backbone) {
 
-        var Status = {};
-
-        Status.Model = Backbone.Model.extend({
-            url: "/jolokia/exec/org.codice.ddf.catalog.admin.poller.AdminPollerServiceBean:service=admin-source-poller-service/sourceStatus/",
-            model: Status.Model,
-
-            initialize: function(pid) {
-                this.url += pid;
+        return Backbone.Model.extend({
+            defaults: {
+                contentView: undefined,
+                title: 'Default Title'
             }
         });
-
-        return Status;
     });

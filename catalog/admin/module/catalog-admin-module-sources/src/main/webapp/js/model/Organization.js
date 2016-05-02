@@ -16,16 +16,30 @@
 define(['backbone'],
     function(Backbone) {
 
-        var Status = {};
+        var Organization = {};
 
-        Status.Model = Backbone.Model.extend({
-            url: "/jolokia/exec/org.codice.ddf.catalog.admin.poller.AdminPollerServiceBean:service=admin-source-poller-service/sourceStatus/",
-            model: Status.Model,
+        Organization = Backbone.Model.extend({
+
+            // Defaults set to 'Not Provided' to indicate the software correctly pulled the Organizational Info
+            // but the user did not enter any. N/A was determined to be too vague
+            defaults: {
+                name: 'Not Provided',
+                address: 'Not Provided',
+                phoneNumber: 'Not Provided',
+                emailAddress: 'Not Provided'
+            },
+
+            initializeFromOrganization: function(org) {
+                this.name = org.name;
+                this.address = org.address;
+                this.phoneNumber = org.phoneNumber;
+                this.emailAddress = org.emailAddress;
+            },
 
             initialize: function(pid) {
                 this.url += pid;
             }
         });
 
-        return Status;
+        return Organization;
     });

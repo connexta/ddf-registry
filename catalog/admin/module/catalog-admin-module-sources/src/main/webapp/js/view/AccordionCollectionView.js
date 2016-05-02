@@ -13,19 +13,17 @@
  *
  **/
 /*global define*/
-define(['backbone'],
-    function(Backbone) {
+define([
+    'js/view/Accordion.view.js',
+    'marionette'
+], function(AccordionView, Marionette) {
 
-        var Status = {};
 
-        Status.Model = Backbone.Model.extend({
-            url: "/jolokia/exec/org.codice.ddf.catalog.admin.poller.AdminPollerServiceBean:service=admin-source-poller-service/sourceStatus/",
-            model: Status.Model,
+    var AccordionCollectionView = {};
 
-            initialize: function(pid) {
-                this.url += pid;
-            }
-        });
-
-        return Status;
+    AccordionCollectionView = Marionette.CollectionView.extend({
+        itemView: AccordionView
     });
+
+    return AccordionCollectionView;
+});

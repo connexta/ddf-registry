@@ -155,11 +155,13 @@ public class SourceConfigurationHandler implements EventHandler {
             throws IOException, InvalidSyntaxException, ParserException {
         String metadata = metacard.getMetadata();
         InputStream inputStream = new ByteArrayInputStream(metadata.getBytes(Charsets.UTF_8));
+        boolean identityNode = false;
 
-        Attribute identityNode =
+
+        Attribute identityNodeAttribute =
                 metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_IDENTITY_NODE);
-        if (identityNode != null) {
-            return;
+        if (identityNodeAttribute != null) {
+            identityNode = true;
         }
 
         JAXBElement<RegistryObjectType> registryObjectTypeJAXBElement = parser.unmarshal(
@@ -213,7 +215,7 @@ public class SourceConfigurationHandler implements EventHandler {
             for (Configuration configuration : configurations) {
                 configMap.put(configuration.getFactoryPid(), configuration);
 
-                if (activateSourceOnCreation & !activeHandled) {
+                if (activateSourceOnCreation && !identityNode &&  !activeHandled) {
                     String fPidToActivate = bindingTypeToFactoryPidMap.get(bindingTypeToActivate);
 
                     if (configuration.getFactoryPid()
@@ -280,7 +282,7 @@ public class SourceConfigurationHandler implements EventHandler {
                         .getProperties();
                 serviceConfigurationProperties.putAll(getConfigurationsFromDictionary(properties));
             } else {
-                if (activateSourceOnCreation) {
+                if (activateSourceOnCreation && !identityNode) {
                     if (factoryPid.equals(deletedActiveConfigurationFPid)) {
                         serviceConfigurationProperties.putAll(deletedActiveConfigurationProperties);
                     } else if (factoryPidDisabled.equals(deletedDisabledConfigurationFPid)) {
@@ -326,7 +328,7 @@ public class SourceConfigurationHandler implements EventHandler {
                 if (configuration == null) {
 
                     String pid = factoryPidDisabled;
-                    if (activateSourceOnCreation && factoryPidMask.equals(bindingTypeToActivate)) {
+                    if (activateSourceOnCreation && !identityNode && factoryPidMask.equals(bindingTypeToActivate)) {
                         pid = factoryPid;
                     }
                     configuration = configurationAdmin.createFactoryConfiguration(pid, null);

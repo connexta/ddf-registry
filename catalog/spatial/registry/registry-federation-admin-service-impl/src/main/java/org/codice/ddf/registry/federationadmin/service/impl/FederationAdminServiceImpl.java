@@ -211,8 +211,8 @@ public class FederationAdminServiceImpl implements FederationAdminService {
         filters.add(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.TAGS),
                 RegistryConstants.REGISTRY_TAG));
 
-
-        List<Metacard> existingMetacards = getRegistryMetacardsByFilter(FILTER_FACTORY.and(filters));
+        List<Metacard> existingMetacards =
+                getRegistryMetacardsByFilter(FILTER_FACTORY.and(filters));
 
         if (CollectionUtils.isEmpty(existingMetacards)) {
             String message = "Error updating local registry entry. Registry metacard not found.";
@@ -433,6 +433,55 @@ public class FederationAdminServiceImpl implements FederationAdminService {
             registryEntries.add(getRegistryPackageFromString(xml));
         }
         return registryEntries;
+    }
+
+    @Override
+    public RegistryPackageType getRegistryObjectByMetacardId(String metacardId)
+            throws FederationAdminException {
+        return getRegistryObjectByMetacardId(metacardId, null);
+    }
+
+    @Override
+    public RegistryPackageType getRegistryObjectByMetacardId(String metacardId,
+            List<String> sourceIds) throws FederationAdminException {
+        if (StringUtils.isBlank(metacardId)) {
+            throw new FederationAdminException(
+                    "Error getting registry object by metacard id. Empty id provided.");
+        }
+
+        List<Filter> filters = new ArrayList<>();
+        filters.add(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.CONTENT_TYPE),
+                RegistryConstants.REGISTRY_NODE_METACARD_TYPE_NAME));
+        filters.add(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.TAGS),
+                RegistryConstants.REGISTRY_TAG));
+        filters.add(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.ID), metacardId));
+
+        Filter filter = FILTER_FACTORY.and(filters);
+
+        List<Metacard> metacards = getRegistryMetacardsByFilter(filter, sourceIds);
+
+        if (CollectionUtils.isEmpty(metacards)) {
+            String message = "Error getting registry object by metacard id. No result returned.";
+            LOGGER.debug("{} For metacard ID: {}, optional sources: {}",
+                    message,
+                    metacardId,
+                    sourceIds);
+            return null;
+        }
+
+        if (metacards.size() > 1) {
+            String message =
+                    "Error getting registry object by metacard id. More than one metacards were returned.";
+            LOGGER.error("{} For metacard ID: {}, optional sources: {}",
+                    message,
+                    metacardId,
+                    sourceIds);
+            throw new FederationAdminException(message);
+        }
+
+        String xml = metacards.get(0)
+                .getMetadata();
+        return getRegistryPackageFromString(xml);
     }
 
     @Override
@@ -663,7 +712,8 @@ public class FederationAdminServiceImpl implements FederationAdminService {
 
         String siteName = SystemInfo.getSiteName();
         if (StringUtils.isNotBlank(siteName)) {
-            extrinsicObject.setName(RegistryPackageUtils.getInternationalStringTypeFromString(siteName));
+            extrinsicObject.setName(RegistryPackageUtils.getInternationalStringTypeFromString(
+                    siteName));
         }
 
         String home = SystemBaseUrl.getBaseUrl();
@@ -769,6 +819,11 @@ public class FederationAdminServiceImpl implements FederationAdminService {
 
     private List<Metacard> getRegistryMetacardsByFilter(Filter filter)
             throws FederationAdminException {
+        return getRegistryMetacardsByFilter(filter, null);
+    }
+
+    private List<Metacard> getRegistryMetacardsByFilter(Filter filter, List<String> sourceIds)
+            throws FederationAdminException {
         if (filter == null) {
             throw new FederationAdminException(
                     "Error getting registry metacards. Null filter provided.");
@@ -782,7 +837,7 @@ public class FederationAdminServiceImpl implements FederationAdminService {
         ((QueryImpl) query).setSortBy(sortBy);
 
         Subject systemSubject = security.getSystemSubject();
-        QueryRequest queryRequest = new QueryRequestImpl(query);
+        QueryRequest queryRequest = new QueryRequestImpl(query, sourceIds);
         queryRequest.getProperties()
                 .put(SecurityConstants.SECURITY_SUBJECT, systemSubject);
 

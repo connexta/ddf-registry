@@ -40,9 +40,9 @@ import org.codice.ddf.parser.ParserConfigurator;
 import org.codice.ddf.parser.ParserException;
 import org.codice.ddf.parser.xml.XmlParser;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
-import org.codice.ddf.registry.federationadmin.converter.RegistryPackageWebConverter;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminService;
+import org.codice.ddf.registry.schemabindings.RegistryPackageWebConverter;
 import org.codice.ddf.registry.transformer.RegistryTransformer;
 import org.junit.Before;
 import org.junit.Test;
@@ -54,7 +54,6 @@ import org.osgi.service.cm.ConfigurationAdmin;
 import ddf.catalog.data.Metacard;
 import ddf.catalog.data.impl.AttributeImpl;
 import ddf.catalog.data.impl.MetacardImpl;
-
 import ddf.catalog.transform.CatalogTransformerException;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryObjectType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryPackageType;

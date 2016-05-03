@@ -87,6 +87,11 @@
             <groupId>org.codice.ddf.registry</groupId>
             <artifactId>registry-source-configuration-handler</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.codice.ddf.registry</groupId>
+            <artifactId>registry-report-viewer</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

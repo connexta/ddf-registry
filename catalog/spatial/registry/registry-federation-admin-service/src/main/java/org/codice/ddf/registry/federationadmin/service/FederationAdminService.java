@@ -217,6 +217,24 @@ public interface FederationAdminService {
     List<RegistryPackageType> getRegistryObjects() throws FederationAdminException;
 
     /**
+     * Get a registry object by id
+     *
+     * @return List<RegistryPackageType>
+     * @throws FederationAdminException If an exception is thrown trying to unmarshal the xml
+     */
+    RegistryPackageType getRegistryObjectByMetacardId(String metacardId)
+            throws FederationAdminException;
+
+    /**
+     * Get a registry object by id providing a list of source ids to be queried
+     *
+     * @return List<RegistryPackageType>
+     * @throws FederationAdminException If an exception is thrown trying to unmarshal the xml
+     */
+    RegistryPackageType getRegistryObjectByMetacardId(String metacardId, List<String> sourceIds)
+            throws FederationAdminException;
+
+    /**
      * Refreshes registry metacards to match changes to any of the subscribed registries.
      * A query get the current remote registry metacards and compares them to the metacards in the registry, updating or adding if needed.
      * <p>

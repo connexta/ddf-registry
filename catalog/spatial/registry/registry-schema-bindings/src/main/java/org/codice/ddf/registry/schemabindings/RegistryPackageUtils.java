@@ -10,23 +10,31 @@
  * Lesser General Public License for more details. A copy of the GNU Lesser General Public License
  * is distributed along with this program and can be found at
  * <http://www.gnu.org/licenses/lgpl.html>.
- **/
+ */
 package org.codice.ddf.registry.schemabindings;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.commons.collections.CollectionUtils;
+import javax.xml.bind.JAXBElement;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.codice.ddf.registry.common.RegistryConstants;
+
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.AssociationType1;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.ExtrinsicObjectType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.InternationalStringType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.LocalizedStringType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.ObjectFactory;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.OrganizationType;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.PersonType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryObjectListType;
+import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryObjectType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryPackageType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.ServiceBindingType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.ServiceType;
@@ -36,6 +44,8 @@ import oasis.names.tc.ebxml_regrep.xsd.rim._3.ValueListType;
 public final class RegistryPackageUtils {
 
     private static final ObjectFactory RIM_FACTORY = new ObjectFactory();
+
+    private static final String BINDING_TYPE = "bindingType";
 
     private RegistryPackageUtils() {
     }
@@ -68,63 +78,77 @@ public final class RegistryPackageUtils {
     }
 
     public static List<ServiceType> getServices(RegistryPackageType registryPackage) {
-        List<ServiceType> services = new ArrayList<>();
-
-        if (registryPackage == null) {
-            return services;
-        }
-
-        if (registryPackage.isSetRegistryObjectList()) {
-            services = getServices(registryPackage.getRegistryObjectList());
-        }
-
-        return services;
+        return getObjectsFromRegistryObjectList(registryPackage, ServiceType.class);
     }
 
     public static List<ServiceType> getServices(RegistryObjectListType registryObjectList) {
-        List<ServiceType> services = new ArrayList<>();
-
-        if (registryObjectList == null) {
-            return services;
-        }
-
-        services.addAll(registryObjectList.getIdentifiable()
-                .stream()
-                .filter(identifiable -> identifiable.getValue() instanceof ServiceType)
-                .map(identifiable -> (ServiceType) identifiable.getValue())
-                .collect(Collectors.toList()));
-
-        return services;
+        return getObjectsFromRegistryObjectList(registryObjectList, ServiceType.class);
     }
 
-    public static List<ExtrinsicObjectType> getExtrinsicObjects(RegistryPackageType registryPackage) {
-        List<ExtrinsicObjectType> extrinsicObjects = new ArrayList<>();
+    public static List<ExtrinsicObjectType> getExtrinsicObjects(
+            RegistryPackageType registryPackage) {
+        return getObjectsFromRegistryObjectList(registryPackage, ExtrinsicObjectType.class);
+    }
+
+    public static List<ExtrinsicObjectType> getExtrinsicObjects(
+            RegistryObjectListType registryObjectList) {
+        return getObjectsFromRegistryObjectList(registryObjectList, ExtrinsicObjectType.class);
+    }
+
+    public static List<OrganizationType> getOrganizations(RegistryPackageType registryPackage) {
+        return getObjectsFromRegistryObjectList(registryPackage, OrganizationType.class);
+    }
+
+    public static List<OrganizationType> getOrganizations(
+            RegistryObjectListType registryObjectList) {
+        return getObjectsFromRegistryObjectList(registryObjectList, OrganizationType.class);
+    }
+
+    public static List<PersonType> getPersons(RegistryPackageType registryPackage) {
+        return getObjectsFromRegistryObjectList(registryPackage, PersonType.class);
+    }
+
+    public static List<PersonType> getPersons(RegistryObjectListType registryObjectList) {
+        return getObjectsFromRegistryObjectList(registryObjectList, PersonType.class);
+    }
+
+    public static List<AssociationType1> getAssociations(RegistryPackageType registryPackage) {
+        return getObjectsFromRegistryObjectList(registryPackage, AssociationType1.class);
+    }
+
+    public static List<AssociationType1> getAssociations(RegistryObjectListType registryObjectList) {
+        return getObjectsFromRegistryObjectList(registryObjectList, AssociationType1.class);
+    }
+
+    public static <T extends RegistryObjectType> List<T> getObjectsFromRegistryObjectList(RegistryPackageType registryPackage, Class<T> type) {
+        List<T> registryObjects = new ArrayList<>();
 
         if (registryPackage == null) {
-            return extrinsicObjects;
+            return registryObjects;
         }
 
         if (registryPackage.isSetRegistryObjectList()) {
-            extrinsicObjects = getExtrinsicObjects(registryPackage.getRegistryObjectList());
+            registryObjects = getObjectsFromRegistryObjectList(registryPackage.getRegistryObjectList(), type);
         }
 
-        return extrinsicObjects;
+        return registryObjects;
     }
 
-    public static List<ExtrinsicObjectType> getExtrinsicObjects(RegistryObjectListType registryObjectList) {
-        List<ExtrinsicObjectType> extrinsicObject = new ArrayList<>();
+    public static <T extends RegistryObjectType> List<T> getObjectsFromRegistryObjectList(
+            RegistryObjectListType registryObjectList, Class<T> type) {
+        List<T> registryObjects = new ArrayList<>();
 
         if (registryObjectList == null) {
-            return extrinsicObject;
+            return registryObjects;
         }
 
-        extrinsicObject.addAll(registryObjectList.getIdentifiable()
+        registryObjects.addAll(registryObjectList.getIdentifiable()
                 .stream()
-                .filter(identifiable -> identifiable.getValue() instanceof ExtrinsicObjectType)
-                .map(identifiable -> (ExtrinsicObjectType) identifiable.getValue())
+                .filter(identifiable -> type.isInstance(identifiable.getValue()))
+                .map(identifiable -> (T) identifiable.getValue())
                 .collect(Collectors.toList()));
 
-        return extrinsicObject;
+        return registryObjects;
     }
 
     public static SlotType1 getSlotByName(String name, List<SlotType1> slots) {

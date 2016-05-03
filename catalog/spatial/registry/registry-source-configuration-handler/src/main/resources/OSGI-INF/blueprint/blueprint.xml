@@ -17,11 +17,16 @@
 
     <reference id="configurationAdmin" interface="org.osgi.service.cm.ConfigurationAdmin"/>
     <reference id="eventAdmin" interface="org.codice.ddf.parser.Parser" availability="mandatory"/>
-    <!--<reference id="federationAdminService" interface="org.codice.ddf.registry.federationadmin.service.FederationAdminService"/>-->
+    <reference id="federationAdminService" interface="org.codice.ddf.registry.federationadmin.service.FederationAdminService"/>
     <reference id="metaTypeService" interface="org.osgi.service.metatype.MetaTypeService" />
     <reference id="xmlParser" interface="org.codice.ddf.parser.Parser" filter="(id=xml)" availability="mandatory"/>
 
     <bean id="sourceConfigurationHandler" class="org.codice.ddf.registry.source.configuration.SourceConfigurationHandler" init-method="init">
+        <argument ref="federationAdminService"/>
+        <property name="configurationAdmin" ref="configurationAdmin"/>
+        <property name="metaTypeService" ref="metaTypeService"/>
+        <property name="parser" ref="xmlParser"/>
+
         <cm:managed-properties persistent-id="Registry_Configuration_Event_Handler" update-strategy="container-managed"/>
         <property name="urlBindingName" value="urlBindingName"/>
         <property name="bindingTypeFactoryPid">
@@ -39,10 +44,6 @@
                 <value>OpenSearch_1.0.0</value>
             </list>
         </property>
-
-        <property name="configurationAdmin" ref="configurationAdmin"/>
-        <property name="metaTypeService" ref="metaTypeService"/>
-        <property name="parser" ref="xmlParser"/>
     </bean>
 
     <service ref="sourceConfigurationHandler" interface="org.osgi.service.event.EventHandler">

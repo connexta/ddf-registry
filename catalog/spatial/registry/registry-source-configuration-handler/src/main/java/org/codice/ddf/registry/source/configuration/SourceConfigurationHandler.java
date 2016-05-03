@@ -37,6 +37,8 @@ import org.codice.ddf.parser.ParserConfigurator;
 import org.codice.ddf.parser.ParserException;
 import org.codice.ddf.registry.common.RegistryConstants;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
+import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
+import org.codice.ddf.registry.federationadmin.service.FederationAdminService;
 import org.codice.ddf.registry.schemabindings.RegistryPackageUtils;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
@@ -80,6 +82,8 @@ public class SourceConfigurationHandler implements EventHandler {
 
     private ConfigurationAdmin configurationAdmin;
 
+    private FederationAdminService federationAdminService;
+
     private MetaTypeService metaTypeService;
 
     private Parser parser;
@@ -98,7 +102,8 @@ public class SourceConfigurationHandler implements EventHandler {
 
     private Boolean activateSourceOnCreation;
 
-    public SourceConfigurationHandler() {
+    public SourceConfigurationHandler(FederationAdminService federationAdminService) {
+        this.federationAdminService = federationAdminService;
     }
 
     public void init() {
@@ -483,8 +488,31 @@ public class SourceConfigurationHandler implements EventHandler {
                 .getBundleContext();
     }
 
+    private void updateRegistrySourceConfigurations() {
+        try {
+            List<Metacard> metacards = federationAdminService.getRegistryMetacards();
+
+            for (Metacard metacard : metacards) {
+                try {
+                    updateRegistryConfigurations(metacard);
+                } catch (InvalidSyntaxException | ParserException | IOException e) {
+                    LOGGER.error(
+                            "Unable to update registry configurations. Registry source configurations won't be updated for metacard id: {}",
+                            metacard.getId());
+                }
+            }
+
+        } catch (FederationAdminException e) {
+            LOGGER.error(
+                    "Error getting registry metacards. Registry source configurations won't be updated.");
+        }
+    }
+
     public void setActivateSourceOnCreation(Boolean activateSourceOnCreation) {
         this.activateSourceOnCreation = activateSourceOnCreation;
+        if (activateSourceOnCreation) {
+            updateRegistrySourceConfigurations();
+        }
     }
 
     public void setBindingTypeFactoryPid(List<String> bindingTypeFactoryPid) {
@@ -501,7 +529,17 @@ public class SourceConfigurationHandler implements EventHandler {
     }
 
     public void setSourceActivationPriorityOrder(List<String> sourceActivationPriorityOrder) {
+        boolean orderUpdated = false;
+        if (sourceActivationPriorityOrder != null
+                && !sourceActivationPriorityOrder.equals(this.sourceActivationPriorityOrder)) {
+            orderUpdated = true;
+        }
+
         this.sourceActivationPriorityOrder = sourceActivationPriorityOrder;
+
+        if (activateSourceOnCreation && orderUpdated) {
+            updateRegistrySourceConfigurations();
+        }
     }
 
     public void setUrlBindingName(String urlBindingName) {

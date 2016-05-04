@@ -41,8 +41,8 @@ define([
                 field.set('valueTime', dateTimeParts[1].substring(0, dateTimeParts[1].length - 1));
             }
         } else if (values && field.get('type') === 'point') {
-            field.set('valueLat', values.coords[0]);
-            field.set('valueLon', values.coords[1]);
+            field.set('valueLat', values.coords[1]);
+            field.set('valueLon', values.coords[0]);
         }
         else if (values && field.get('type') === 'bounds') {
             field.set('valueUpperLat', values.coords[0]);

@@ -164,7 +164,7 @@ define([
                             Point: {
                                 srsName: 'urn:ogc:def:crs:EPSG::4326',
                                 srsDimension: 2,
-                                pos: this.get('valueLat') + ' ' + this.get('valueLon')
+                                pos:  this.get('valueLon') + ' ' +this.get('valueLat') 
                             }
                         };
                     }

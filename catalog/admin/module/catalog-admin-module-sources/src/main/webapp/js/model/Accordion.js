@@ -14,25 +14,11 @@
  **/
 /*global define*/
 define([
-    'text!templates/emptyView.handlebars',
-    'marionette',
-    'icanhaz'
-], function(emptyViewTemplate, Marionette, ich) {
+        'backbone'
+    ],
+    function(Backbone) {
 
-    if (!ich.emptyViewTemplate) {
-        ich.addTemplate('emptyViewTemplate', emptyViewTemplate);
-    }
+        return Backbone.Model.extend({
 
-    var EmptyView = {};
-
-    EmptyView.sources = Marionette.ItemView.extend({
-        template: 'emptyViewTemplate',
-        serializeData: function() {
-            return {
-                message: "There are no sources configured."
-            };
-        }
+        });
     });
-
-    return EmptyView;
-});

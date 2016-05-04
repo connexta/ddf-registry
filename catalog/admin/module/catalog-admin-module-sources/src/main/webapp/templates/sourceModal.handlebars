@@ -11,18 +11,20 @@
  *
  **/
  --}}
- 
+
 <div class="modal-dialog">
     <div class="modal-content">
         <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
             <h4 class="modal-title">
                 {{#is mode 'edit'}}
-                    Edit {{name}}
+                    Edit:  {{name}}
                 {{else}}
                     Add Source
                 {{/is}}
             </h4>
+        </div>
+        <div class="modal-organization">
         </div>
         <div class="modal-body">
             <form class="form-horizontal add-federated-source container-fluid">
@@ -30,15 +32,28 @@
                     <div class="sourceName"></div>
                     <div class="bound-controls">
                         <div class="control-group">
-                            <label class="control-label">Source Type</label>
-                            <select class="form-control input-sm sourceTypesSelect"></select>
+
+                            <select class="form-control input-sm activeBindingSelect"></select>
+
                         </div>
+                        <label class="control-label2">Binding Configurations:</label>
                         <div class="modal-details"></div>
                     </div>
                 </fieldset>
             </form>
         </div>
-
+        <div class="modal-accordions">
+        </div>
+        {{#if isRegistry}}
+        <div id="checkboxes">
+            <label>Publish node to the following registries:</label>
+            <ul>
+                {{#each availableRegistries}}
+                    <li><input type="checkbox" value="{{this.name}}" {{#if this.alreadyPublishedTo}}checked{{/if}}> {{this.name}}</li>
+                {{/each}}
+            </ul>
+        </div>
+        {{/if}}
         <div class="modal-footer">
             <div class="btn-group">
                 {{#is mode 'edit'}}

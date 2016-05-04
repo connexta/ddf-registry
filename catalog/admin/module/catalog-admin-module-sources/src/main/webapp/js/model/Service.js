@@ -14,7 +14,7 @@
  **/
 /*global define*/
 /*jshint -W024*/
-define(function (require) {
+define(function(require) {
 
     var Backbone = require('backbone'),
         $ = require('jquery'),
@@ -44,14 +44,12 @@ define(function (require) {
                 properties: new Service.Properties()
             };
         },
-        relations: [
-            {
-                type: Backbone.One,
-                key: 'properties',
-                relatedModel: Service.Properties,
-                includeInJSON: true
-            }
-        ],
+        relations: [{
+            type: Backbone.One,
+            key: 'properties',
+            relatedModel: Service.Properties,
+            includeInJSON: true
+        }],
 
         initialize: function(options) {
             if (options.service) {
@@ -65,7 +63,7 @@ define(function (require) {
          * @param pid The pid id.
          * @returns {{type: string, mbean: string, operation: string}}
          */
-        collectedData: function (pid) {
+        collectedData: function(pid) {
             var model = this;
             var data = {
                 type: 'EXEC',
@@ -82,17 +80,18 @@ define(function (require) {
          * @param model, this is really this model.
          * @returns an ajax promise
          */
-        makeConfigCall: function (model) {
+        makeConfigCall: function(model) {
             if (!model) {
                 return;
             }
             var configUrl = [model.configUrl, "createFactoryConfiguration", model.get("fpid")].join("/");
-            return $.ajax({type: 'GET',
+            return $.ajax({
+                type: 'GET',
                 url: configUrl
             });
         },
 
-        makeEnableCall: function(){
+        makeEnableCall: function() {
             var model = this;
             var pid = model.get('id');
             var url = [model.configUrl, "enableConfiguration", pid].join("/");
@@ -100,12 +99,12 @@ define(function (require) {
                 return $.ajax({
                     url: url,
                     dataType: 'json'
-                }).done(function(){
+                }).done(function() {
                     // massage some data to match the new backend pid.
                     model.trigger('enabled');
                     //enabling the model means the PID will be regenerated. This model no longer exists on the server.
                     model.destroy();
-                }).fail(function(){
+                }).fail(function() {
                     new Error('Could not enable configuratoin ' + pid);
                 });
             }
@@ -114,7 +113,7 @@ define(function (require) {
 
         },
 
-        makeDisableCall: function(){
+        makeDisableCall: function() {
             var model = this;
             var pid = model.get('id');
             var url = [model.configUrl, "disableConfiguration", pid].join("/");
@@ -122,11 +121,11 @@ define(function (require) {
                 return $.ajax({
                     url: url,
                     dataType: 'json'
-                }).done(function(){
+                }).done(function() {
                     model.trigger('disabled');
                     //disabling the model means the PID will be regenerated. This model no longer exists on the server.
                     model.destroy();
-                }).fail(function(){
+                }).fail(function() {
                     new Error('Could not disable configuration ' + pid);
                 });
             }
@@ -137,24 +136,23 @@ define(function (require) {
         // Used to make a call to the backend to disable the service that corresponds to the pid.
         // Note: this does NOT affect the service the function is called on.
         // Treat this as a static function
-        makeDisableCallByPid: function(pid){
-           var url = [this.configUrl, "disableConfiguration", pid].join("/");
-           return $.ajax({
-               url: url,
-               dataType: 'json'
-           });
+        makeDisableCallByPid: function(pid) {
+            var url = [this.configUrl, "disableConfiguration", pid].join("/");
+            return $.ajax({
+                url: url,
+                dataType: 'json'
+            });
         },
-
         /**
          * When a model calls save the sync is called in Backbone.  I override it because this isn't a typical backbone
          * object
          * @return Return a deferred which is a handler with the success and failure callback.
          */
-        sync: function () {
+        sync: function() {
             var deferred = $.Deferred(),
                 model = this;
             //if it has a pid we are editing an existing record
-            if(model.id) {
+            if (model.id) {
                 var collect = model.collectedData(model.id);
                 var jData = JSON.stringify(collect);
 
@@ -163,14 +161,14 @@ define(function (require) {
                     contentType: 'application/json',
                     data: jData,
                     url: model.configUrl
-                }).done(function (result) {
-                        deferred.resolve(result);
-                    }).fail(function (error) {
-                        deferred.fail(error);
-                    });
-             //no pid means this is a new record
+                }).done(function(result) {
+                    deferred.resolve(result);
+                }).fail(function(error) {
+                    deferred.fail(error);
+                });
+                //no pid means this is a new record
             } else {
-                model.makeConfigCall(model).done(function (data) {
+                model.makeConfigCall(model).done(function(data) {
                     var collect = model.collectedData(JSON.parse(data).value);
                     var jData = JSON.stringify(collect);
 
@@ -179,12 +177,12 @@ define(function (require) {
                         contentType: 'application/json',
                         data: jData,
                         url: model.configUrl
-                    }).done(function (result) {
+                    }).done(function(result) {
                         deferred.resolve(result);
-                    }).fail(function (error) {
+                    }).fail(function(error) {
                         deferred.fail(error);
                     });
-                }).fail(function (error) {
+                }).fail(function(error) {
                     deferred.fail(error);
                 });
             }
@@ -194,7 +192,7 @@ define(function (require) {
             var model = this,
                 addUrl = [model.configUrl, "add"].join("/");
 
-            model.makeConfigCall(model).done(function (data) {
+            model.makeConfigCall(model).done(function(data) {
                 var collect = model.collectedData(JSON.parse(data).value);
                 var jData = JSON.stringify(collect);
 
@@ -203,12 +201,12 @@ define(function (require) {
                     contentType: 'application/json',
                     data: jData,
                     url: addUrl
-                }).done(function (result) {
+                }).done(function(result) {
                     deferred.resolve(result);
-                }).fail(function (error) {
+                }).fail(function(error) {
                     deferred.fail(error);
                 });
-            }).fail(function (error) {
+            }).fail(function(error) {
                 deferred.fail(error);
             });
         },
@@ -223,16 +221,22 @@ define(function (require) {
             return $.ajax({
                 type: 'GET',
                 url: deleteUrl
-            }).done(function (result) {
-                  deferred.resolve(result);
-                }).fail(function (error) {
-                    deferred.fail(error);
-                });
+            }).done(function(result) {
+                deferred.resolve(result);
+            }).fail(function(error) {
+                deferred.fail(error);
+            });
         },
         initializeFromMSF: function(msf) {
-            this.set({"fpid":msf.get("id")});
-            this.set({"name":msf.get("name")});
-            this.get('properties').set({"service.factoryPid": msf.get("id")});
+            this.set({
+                "fpid": msf.get("id")
+            });
+            this.set({
+                "name": msf.get("name")
+            });
+            this.get('properties').set({
+                "service.factoryPid": msf.get("id")
+            });
             this.initializeFromService(msf);
         },
         initializeFromService: function(service) {
@@ -253,7 +257,7 @@ define(function (require) {
             if (!_.isUndefined(idModel)) {
                 model.set('properties', new Service.Properties(idModel.get('defaultValue')));
             }
-            metatype.forEach(function(obj){
+            metatype.forEach(function(obj) {
                 var id = obj.get('id');
                 var val = obj.get('defaultValue');
                 if (id !== 'id') {
@@ -262,8 +266,8 @@ define(function (require) {
             });
         },
         /**
-         * Returns the Service.Model used to create this configuration. If the 'service' property is set, that value 
-         * is returned. Otherwise, the service is retrieved by looking it up from the configuration collection relation. 
+         * Returns the Service.Model used to create this configuration. If the 'service' property is set, that value
+         * is returned. Otherwise, the service is retrieved by looking it up from the configuration collection relation.
          */
         getService: function() {
             return this.get('service') || this.collection.parents[0];
@@ -272,7 +276,7 @@ define(function (require) {
 
     Service.ConfigurationList = Backbone.Collection.extend({
         model: Service.Configuration,
-        comparator: function(model){
+        comparator: function(model) {
             return model.get('id');
         }
     });
@@ -285,38 +289,41 @@ define(function (require) {
                 configurations: new Service.ConfigurationList()
             };
         },
-        relations: [
-            {
-                type: Backbone.Many,
-                key: 'configurations',
-                relatedModel: Service.Configuration,
-                collectionType: Service.ConfigurationList,
-                includeInJSON: true
-            },
-            {
-                type: Backbone.Many,
-                key: 'metatype',
-                relatedModel: Service.Metatype,
-                includeInJSON: false
-            }
-        ],
+        relations: [{
+            type: Backbone.Many,
+            key: 'configurations',
+            relatedModel: Service.Configuration,
+            collectionType: Service.ConfigurationList,
+            includeInJSON: true
+        }, {
+            type: Backbone.Many,
+            key: 'metatype',
+            relatedModel: Service.Metatype,
+            includeInJSON: false
+        }],
 
         hasConfiguration: function() {
-            if(this.configuration) {
+            if (this.configuration) {
                 return true;
             }
             return false;
         },
         initializeFromMSF: function(msf) {
-            this.set({"fpid":msf.get("id")});
-            this.set({"name":msf.get("name")});
+            this.set({
+                "fpid": msf.get("id")
+            });
+            this.set({
+                "name": msf.get("name")
+            });
             this.initializeConfigurationFromMetatype(msf.get("metatype"));
-            this.configuration.set({"service.factoryPid": msf.get("id")});
+            this.configuration.set({
+                "service.factoryPid": msf.get("id")
+            });
         },
         initializeConfigurationFromMetatype: function(metatype) {
             var src = this;
             src.configuration = new Service.Configuration();
-            metatype.forEach(function(obj){
+            metatype.forEach(function(obj) {
                 var id = obj.id;
                 var val = obj.defaultValue;
                 src.configuration.set(id, (val) ? val.toString() : null);
@@ -326,16 +333,43 @@ define(function (require) {
 
     Service.Response = Backbone.AssociatedModel.extend({
         url: "/jolokia/exec/org.codice.ddf.catalog.admin.poller.AdminPollerServiceBean:service=admin-source-poller-service/allSourceInfo",
-        relations: [
-            {
-                type: Backbone.Many,
-                key: 'value',
-                relatedModel: Service.Model,
-                includeInJSON: false
-            }
-        ]
+        relations: [{
+            type: Backbone.Many,
+            key: 'value',
+            relatedModel: Service.Model,
+            includeInJSON: false
+        }]
     });
 
-    return Service;
+    Service.RegistryService = Backbone.AssociatedModel.extend({
+        url: "/jolokia/exec/org.codice.ddf.registry:type=FederationAdminMBean/allRegistryInfo",
+            parse: function(data) {
+                return data;
+            }
+    });
 
+
+    Service.RegistryMetacards = Backbone.AssociatedModel.extend({
+        url: "/jolokia/exec/org.codice.ddf.registry:type=FederationAdminMBean/allRegistryMetacards",
+        parse: function(data) {
+            return data;
+        },
+        publishTo: function(idToPublishFrom, idsToPublishTo) {
+            var data = {
+                type: 'EXEC',
+                mbean: "org.codice.ddf.registry:type=FederationAdminMBean",
+                operation: "updatePublications",
+                arguments: [idToPublishFrom, idsToPublishTo]
+            };
+            data = JSON.stringify(data);
+            $.ajax({
+                type: 'POST',
+                url: "/jolokia/exec/org.codice.ddf.registry:type=FederationAdminMBean/updatePublications",
+                data: data
+            }).fail(function(error) {
+                console.log(error);
+            });
+        }
+    });
+    return Service;
 });

@@ -21,7 +21,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.ext.MessageBodyWriter;
@@ -115,9 +114,6 @@ public abstract class AbstractCswStore extends AbstractCswSource implements Cata
         CswTransactionRequest transactionRequest = getTransactionRequest();
 
         List<Metacard> metacards = createRequest.getMetacards();
-        List<String> metacardIds = metacards.stream()
-                .map(Metacard::getId)
-                .collect(Collectors.toList());
         List<Metacard> createdMetacards = new ArrayList<>();
         List<Filter> createdMetacardFilters;
         HashSet<ProcessingDetails> errors = new HashSet<>();
@@ -134,7 +130,6 @@ public abstract class AbstractCswStore extends AbstractCswSource implements Cata
                 .add(new InsertAction(insertTypeName, null, metacards));
         try {
             TransactionResponseType response = csw.transaction(transactionRequest);
-            Set<String> processedIds = new HashSet<>();
             //dive down into the response to get the created ID's. We need these so we can query
             //the source again to get the created metacards and put them in the result
             createdMetacardFilters = response.getInsertResult()
@@ -146,19 +141,13 @@ public abstract class AbstractCswStore extends AbstractCswSource implements Cata
                     .map(JAXBElement::getValue)
                     .map(SimpleLiteral::getContent)
                     .flatMap(Collection::stream)
-                    .map(id -> {
-                        processedIds.add(id);
-                        return filterBuilder.attribute(Metacard.ID)
+                    .map(id ->
+                         filterBuilder.attribute(Metacard.ID)
                                 .is()
                                 .equalTo()
-                                .text(id);
-                    })
+                                .text(id)
+                    )
                     .collect(Collectors.toList());
-            metacardIds.removeAll(processedIds);
-
-            errors.addAll(metacardIds.stream()
-                    .map(id -> new ProcessingDetailsImpl(id, null, "Failed to create metacard"))
-                    .collect(Collectors.toList()));
 
         } catch (CswException e) {
             throw new IngestException("Csw Transaction Failed : ", e);

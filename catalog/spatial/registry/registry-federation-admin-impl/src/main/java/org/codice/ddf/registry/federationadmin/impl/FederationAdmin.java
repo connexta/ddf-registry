@@ -536,13 +536,7 @@ public class FederationAdmin implements FederationAdminMBean {
                             .create(createRequest);
                     if (createResponse.getProcessingErrors()
                             .isEmpty()) {
-                        updatedPublishedLocations.addAll(createResponse.getCreatedMetacards()
-                                .stream()
-                                .filter(createdMetacard -> createdMetacard.getAttribute(
-                                        RegistryObjectMetacardType.REGISTRY_ID)
-                                        .equals(metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)))
-                                .map(createdMetacard -> id)
-                                .collect(Collectors.toList()));
+                        updatedPublishedLocations.add(id);
                     }
                 } catch (IngestException e) {
                     LOGGER.error("Unable to create metacard in catalogStore {}", id, e);
@@ -573,26 +567,41 @@ public class FederationAdmin implements FederationAdminMBean {
                 }
             }
 
-            metacard.setAttribute(new AttributeImpl(RegistryObjectMetacardType.PUBLISHED_LOCATIONS,
-                    updatedPublishedLocations));
-            metacard.setAttribute(new AttributeImpl(RegistryObjectMetacardType.LAST_PUBLISHED,
-                    metacard.getModifiedDate()));
-            Map<String, Serializable> properties = new HashMap<>();
-            properties.put(RegistryConstants.TRANSIENT_ATTRIBUTE_UPDATE, true);
+            if (updateNeeded(currentlyPublishedLocations, updatedPublishedLocations)) {
+                metacard.setAttribute(new AttributeImpl(RegistryObjectMetacardType.PUBLISHED_LOCATIONS,
+                        updatedPublishedLocations));
+                metacard.setAttribute(new AttributeImpl(RegistryObjectMetacardType.LAST_PUBLISHED,
+                        metacard.getModifiedDate()));
+                Map<String, Serializable> properties = new HashMap<>();
+                properties.put(RegistryConstants.TRANSIENT_ATTRIBUTE_UPDATE, true);
 
-            List<Map.Entry<Serializable, Metacard>> updateList = new ArrayList<>();
-            updateList.add(new AbstractMap.SimpleEntry<>(metacard.getId(), metacard));
+                List<Map.Entry<Serializable, Metacard>> updateList = new ArrayList<>();
+                updateList.add(new AbstractMap.SimpleEntry<>(metacard.getId(), metacard));
 
-            try {
-                catalogFramework.update(new UpdateRequestImpl(updateList, Metacard.ID, properties));
-            } catch (IngestException e) {
-                LOGGER.error("Unable to update metacard", e);
-            } catch (SourceUnavailableException e) {
-                LOGGER.error("Unable to update metacard, source unavailable", e);
+                try {
+                    catalogFramework.update(new UpdateRequestImpl(updateList,
+                            Metacard.ID,
+                            properties));
+                } catch (IngestException e) {
+                    LOGGER.error("Unable to update metacard", e);
+                } catch (SourceUnavailableException e) {
+                    LOGGER.error("Unable to update metacard, source unavailable", e);
+                }
             }
         }
 
         return updatedPublishedLocations;
+    }
+
+    private boolean updateNeeded(List<Serializable> current, List<Serializable> updated) {
+        if (current == null && updated == null) {
+            return false;
+        }
+        if ((current == null && updated != null) || current != null && updated == null
+                || current.size() != updated.size()) {
+            return true;
+        }
+        return current.containsAll(updated) && updated.containsAll(current);
     }
 
     private Boolean checkIfMetacardExists(String storeId, String registryId)

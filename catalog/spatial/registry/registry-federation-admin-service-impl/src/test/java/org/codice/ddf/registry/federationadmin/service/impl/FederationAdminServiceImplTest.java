@@ -611,12 +611,9 @@ public class FederationAdminServiceImplTest {
     }
 
     @Test(expected = FederationAdminException.class)
-    public void testUpdateRegistryEntryWithNoMetacardId() throws Exception {
-        String registryId = "registryId";
+    public void testUpdateRegistryEntryWithNoRegistryId() throws Exception {
         String destination = "someDestination";
         Metacard metacard = getTestMetacard();
-        metacard.setAttribute(new AttributeImpl(RegistryObjectMetacardType.REGISTRY_ID,
-                registryId));
         metacard.setAttribute(new AttributeImpl(Metacard.TAGS,
                 Collections.singletonList(RegistryConstants.REGISTRY_TAG)));
 

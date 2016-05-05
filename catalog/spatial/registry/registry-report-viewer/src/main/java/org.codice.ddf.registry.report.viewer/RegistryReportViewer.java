@@ -242,6 +242,8 @@ public class RegistryReportViewer {
                 registryPackage);
         for (OrganizationType organizationType : organizationTypes) {
             Map<String, Object> organizationInfo = new HashMap<>();
+            Map<String, Object> contactInfo = new HashMap<>();
+
             String orgName = "";
 
             if (organizationType.isSetName()) {
@@ -249,17 +251,19 @@ public class RegistryReportViewer {
             }
             if (organizationType.isSetAddress()) {
                 List<String> orgAddresses = getAddresses(organizationType.getAddress());
-                organizationInfo.put("Addresses", orgAddresses);
+                contactInfo.put("Addresses", orgAddresses);
             }
             if (organizationType.isSetTelephoneNumber()) {
                 List<String> phoneNumbers = getPhoneNumbers(organizationType.getTelephoneNumber());
-                organizationInfo.put("Phone Numbers", phoneNumbers);
+                contactInfo.put("Phone Numbers", phoneNumbers);
             }
             if (organizationType.isSetEmailAddress()) {
                 List<String> emailAddresses = getEmailAddresses(organizationType.getEmailAddress());
-                organizationInfo.put("Email Addresses", emailAddresses);
+                contactInfo.put("Email Addresses", emailAddresses);
             }
-            organizationInfo.putAll(getCustomSlots(organizationType.getSlot()));
+
+            organizationInfo.put("ContactInfo", contactInfo);
+            organizationInfo.put("CustomSlots", getCustomSlots(organizationType.getSlot()));
             organizationMap.put(orgName, organizationInfo);
         }
 
@@ -271,6 +275,7 @@ public class RegistryReportViewer {
         List<PersonType> persons = RegistryPackageUtils.getPersons(registryPackage);
         for (PersonType person : persons) {
             Map<String, Object> personMap = new HashMap<>();
+            Map<String, Object> contactInfo = new HashMap<>();
 
             PersonNameType personName = person.getPersonName();
             String firstName = "";
@@ -289,19 +294,19 @@ public class RegistryReportViewer {
 
             if (person.isSetEmailAddress()) {
                 List<String> emailAddresses = getEmailAddresses(person.getEmailAddress());
-                personMap.put("Email Addresses", emailAddresses);
+                contactInfo.put("Email Addresses", emailAddresses);
             }
 
             if (person.isSetTelephoneNumber()) {
                 List<String> phoneNumbers = getPhoneNumbers(person.getTelephoneNumber());
-                personMap.put("Phone Numbers", phoneNumbers);
+                contactInfo.put("Phone Numbers", phoneNumbers);
             }
             if (person.isSetAddress()) {
                 List<String> personAddresses = getAddresses(person.getAddress());
-                personMap.put("Addresses", personAddresses);
+                contactInfo.put("Addresses", personAddresses);
             }
-
-            personMap.putAll(getCustomSlots(person.getSlot()));
+            personMap.put("ContactInfo", contactInfo);
+            personMap.put("CustomSlots", getCustomSlots(person.getSlot()));
             contactMap.put(name, personMap);
         }
 

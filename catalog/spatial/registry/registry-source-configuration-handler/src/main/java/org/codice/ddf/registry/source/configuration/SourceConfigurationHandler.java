@@ -100,7 +100,11 @@ public class SourceConfigurationHandler implements EventHandler {
 
     private List<String> sourceActivationPriorityOrder = new ArrayList<>();
 
-    private Boolean activateSourceOnCreation;
+    private Boolean activateConfigurations;
+
+    private Boolean preserveActiveConfigurations;
+
+    private Boolean cleanUpOnDelete;
 
     public SourceConfigurationHandler(FederationAdminService federationAdminService) {
         this.federationAdminService = federationAdminService;
@@ -130,6 +134,8 @@ public class SourceConfigurationHandler implements EventHandler {
                 } else if (event.getTopic()
                         .equals("ddf/catalog/event/UPDATED")) {
                     processUpdate(mcard);
+                } else if (event.getTopic().equals("ddf/catalog/event/DELETED")) {
+                    processDelete(mcard);
                 }
             });
         }
@@ -137,7 +143,7 @@ public class SourceConfigurationHandler implements EventHandler {
 
     private void processCreate(Metacard metacard) {
         try {
-            updateRegistryConfigurations(metacard);
+            updateRegistryConfigurations(metacard, true);
         } catch (IOException | InvalidSyntaxException | ParserException e) {
             LOGGER.error("Unable to update registry configurations, metacard still ingested");
         }
@@ -145,13 +151,23 @@ public class SourceConfigurationHandler implements EventHandler {
 
     private void processUpdate(Metacard metacard) {
         try {
-            updateRegistryConfigurations(metacard);
+            updateRegistryConfigurations(metacard, false);
         } catch (IOException | InvalidSyntaxException | ParserException e) {
-            LOGGER.error("Unable to update registry configurations, metacard still ingested");
+            LOGGER.error("Unable to update registry configurations, metacard still updated");
         }
     }
 
-    private void updateRegistryConfigurations(Metacard metacard)
+    private void processDelete(Metacard metacard) {
+        try {
+            if (cleanUpOnDelete) {
+                deleteRegistryConfigurations(metacard);
+            }
+        } catch (IOException | InvalidSyntaxException e) {
+            LOGGER.error("Unable to delete registry configurations, metacard still deleted");
+        }
+    }
+
+    private void updateRegistryConfigurations(Metacard metacard, boolean createEvent)
             throws IOException, InvalidSyntaxException, ParserException {
         String metadata = metacard.getMetadata();
         InputStream inputStream = new ByteArrayInputStream(metadata.getBytes(Charsets.UTF_8));
@@ -163,6 +179,8 @@ public class SourceConfigurationHandler implements EventHandler {
         if (identityNodeAttribute != null) {
             identityNode = true;
         }
+
+        boolean autoActivateConfigurations = activateConfigurations && !identityNode && (createEvent || !preserveActiveConfigurations);
 
         JAXBElement<RegistryObjectType> registryObjectTypeJAXBElement = parser.unmarshal(
                 unmarshalConfigurator,
@@ -215,7 +233,7 @@ public class SourceConfigurationHandler implements EventHandler {
             for (Configuration configuration : configurations) {
                 configMap.put(configuration.getFactoryPid(), configuration);
 
-                if (activateSourceOnCreation && !identityNode &&  !activeHandled) {
+                if (autoActivateConfigurations &&  !activeHandled) {
                     String fPidToActivate = bindingTypeToFactoryPidMap.get(bindingTypeToActivate);
 
                     if (configuration.getFactoryPid()
@@ -282,7 +300,7 @@ public class SourceConfigurationHandler implements EventHandler {
                         .getProperties();
                 serviceConfigurationProperties.putAll(getConfigurationsFromDictionary(properties));
             } else {
-                if (activateSourceOnCreation && !identityNode) {
+                if (autoActivateConfigurations) {
                     if (factoryPid.equals(deletedActiveConfigurationFPid)) {
                         serviceConfigurationProperties.putAll(deletedActiveConfigurationProperties);
                     } else if (factoryPidDisabled.equals(deletedDisabledConfigurationFPid)) {
@@ -328,7 +346,7 @@ public class SourceConfigurationHandler implements EventHandler {
                 if (configuration == null) {
 
                     String pid = factoryPidDisabled;
-                    if (activateSourceOnCreation && !identityNode && factoryPidMask.equals(bindingTypeToActivate)) {
+                    if (autoActivateConfigurations && factoryPidMask.equals(bindingTypeToActivate)) {
                         pid = factoryPid;
                     }
                     configuration = configurationAdmin.createFactoryConfiguration(pid, null);
@@ -337,6 +355,22 @@ public class SourceConfigurationHandler implements EventHandler {
             configuration.update(serviceConfigurationProperties);
         }
 
+    }
+
+    private void deleteRegistryConfigurations(Metacard metacard)
+            throws IOException, InvalidSyntaxException {
+        String registryId = null;
+        Attribute registryIdAttribute = metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID);
+        if (registryIdAttribute != null) {
+            registryId = registryIdAttribute.getValue().toString();
+        }
+
+        Configuration[] configurations = configurationAdmin.listConfigurations(String.format("(%s=%s)", RegistryObjectMetacardType.REGISTRY_ID, registryId));
+        if (configurations != null && configurations.length > 0) {
+            for (Configuration configuration : configurations) {
+                configuration.delete();
+            }
+        }
     }
 
     private String getBindingTypeToActivate(List<ServiceBindingType> bindingTypes) {
@@ -496,7 +530,7 @@ public class SourceConfigurationHandler implements EventHandler {
 
             for (Metacard metacard : metacards) {
                 try {
-                    updateRegistryConfigurations(metacard);
+                    updateRegistryConfigurations(metacard, false);
                 } catch (InvalidSyntaxException | ParserException | IOException e) {
                     LOGGER.error(
                             "Unable to update registry configurations. Registry source configurations won't be updated for metacard id: {}",
@@ -510,11 +544,32 @@ public class SourceConfigurationHandler implements EventHandler {
         }
     }
 
-    public void setActivateSourceOnCreation(Boolean activateSourceOnCreation) {
-        this.activateSourceOnCreation = activateSourceOnCreation;
-        if (activateSourceOnCreation) {
+    public void setActivateConfigurations(Boolean activateConfigurations) {
+        if (!activateConfigurations.equals(this.activateConfigurations)) {
+            this.activateConfigurations = activateConfigurations;
+
+            if (!activateConfigurations || preserveActiveConfigurations == null || preserveActiveConfigurations) {
+                return;
+            }
+
             updateRegistrySourceConfigurations();
         }
+    }
+
+    public void setPreserveActiveConfigurations(Boolean preserveActiveConfigurations) {
+        if (!preserveActiveConfigurations.equals(this.preserveActiveConfigurations)) {
+            this.preserveActiveConfigurations = preserveActiveConfigurations;
+
+            if (preserveActiveConfigurations || activateConfigurations == null || !activateConfigurations) {
+                return;
+            }
+
+            updateRegistrySourceConfigurations();
+        }
+    }
+
+    public void setCleanUpOnDelete(Boolean cleanUpOnDelete) {
+        this.cleanUpOnDelete = cleanUpOnDelete;
     }
 
     public void setBindingTypeFactoryPid(List<String> bindingTypeFactoryPid) {
@@ -531,15 +586,14 @@ public class SourceConfigurationHandler implements EventHandler {
     }
 
     public void setSourceActivationPriorityOrder(List<String> sourceActivationPriorityOrder) {
-        boolean orderUpdated = false;
         if (sourceActivationPriorityOrder != null
                 && !sourceActivationPriorityOrder.equals(this.sourceActivationPriorityOrder)) {
-            orderUpdated = true;
-        }
+            this.sourceActivationPriorityOrder = sourceActivationPriorityOrder;
 
-        this.sourceActivationPriorityOrder = sourceActivationPriorityOrder;
+            if (activateConfigurations == null || preserveActiveConfigurations == null || !activateConfigurations && preserveActiveConfigurations) {
+                return;
+            }
 
-        if (activateSourceOnCreation && orderUpdated) {
             updateRegistrySourceConfigurations();
         }
     }

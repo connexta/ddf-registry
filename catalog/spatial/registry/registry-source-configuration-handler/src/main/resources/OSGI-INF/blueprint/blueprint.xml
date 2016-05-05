@@ -36,7 +36,9 @@
                 <value>OpenSearch_1.0.0=OpenSearchSource</value>
             </list>
         </property>
-        <property name="activateSourceOnCreation" value="false"/>
+        <property name="preserveActiveConfigurations" value="true"/>
+        <property name="activateConfigurations" value="false"/>
+        <property name="cleanUpOnDelete" value="false"/>
         <property name="sourceActivationPriorityOrder">
             <list value-type="java.lang.String">
                 <value>CSW_2.0.2</value>

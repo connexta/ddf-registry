@@ -111,7 +111,9 @@ public class SourceConfigurationHandler implements EventHandler {
     }
 
     public void init() {
-        executor = Executors.newFixedThreadPool(threadPoolSize);
+        if (executor == null) {
+            executor = Executors.newFixedThreadPool(threadPoolSize);
+        }
     }
 
     public void destroy() {
@@ -142,7 +144,7 @@ public class SourceConfigurationHandler implements EventHandler {
         }
     }
 
-    private void processCreate(Metacard metacard) {
+    protected void processCreate(Metacard metacard) {
         try {
             updateRegistryConfigurations(metacard, true);
         } catch (IOException | InvalidSyntaxException | ParserException e) {
@@ -150,7 +152,7 @@ public class SourceConfigurationHandler implements EventHandler {
         }
     }
 
-    private void processUpdate(Metacard metacard) {
+    protected void processUpdate(Metacard metacard) {
         try {
             updateRegistryConfigurations(metacard, false);
         } catch (IOException | InvalidSyntaxException | ParserException e) {
@@ -158,7 +160,7 @@ public class SourceConfigurationHandler implements EventHandler {
         }
     }
 
-    private void processDelete(Metacard metacard) {
+    protected void processDelete(Metacard metacard) {
         try {
             if (cleanUpOnDelete) {
                 deleteRegistryConfigurations(metacard);
@@ -242,8 +244,6 @@ public class SourceConfigurationHandler implements EventHandler {
                         activeHandled = true;
                     } else if (!configuration.getFactoryPid()
                             .contains(DISABLED_CONFIGURATION_SUFFIX)) {
-                        String factoryPidDisabled = configuration.getFactoryPid()
-                                .concat(DISABLED_CONFIGURATION_SUFFIX);
                         deletedActiveConfigurationFPid = configuration.getFactoryPid();
                         deletedActiveConfigurationProperties.putAll(getConfigurationsFromDictionary(
                                 configuration.getProperties()));
@@ -251,8 +251,6 @@ public class SourceConfigurationHandler implements EventHandler {
                         configMap.remove(configuration.getFactoryPid());
 
                         configuration.delete();
-                        configurationAdmin.createFactoryConfiguration(factoryPidDisabled, null);
-
                     } else if (configuration.getFactoryPid()
                             .equals(fPidToActivate.concat(DISABLED_CONFIGURATION_SUFFIX))) {
                         deletedDisabledConfigurationFPid = configuration.getFactoryPid();
@@ -526,7 +524,7 @@ public class SourceConfigurationHandler implements EventHandler {
         }
     }
 
-    private BundleContext getBundleContext() {
+    protected BundleContext getBundleContext() {
         return FrameworkUtil.getBundle(this.getClass())
                 .getBundleContext();
     }
@@ -634,6 +632,10 @@ public class SourceConfigurationHandler implements EventHandler {
 
         this.unmarshalConfigurator = parser.configureParser(contextPath, classLoader);
         this.parser = parser;
+    }
+
+    public void setExecutorService(ExecutorService service) {
+        executor = service;
     }
 
 }

@@ -78,7 +78,6 @@ import ddf.catalog.filter.FilterBuilder;
 import ddf.catalog.operation.CreateRequest;
 import ddf.catalog.operation.CreateResponse;
 import ddf.catalog.operation.DeleteRequest;
-import ddf.catalog.operation.Query;
 import ddf.catalog.operation.QueryRequest;
 import ddf.catalog.operation.QueryResponse;
 import ddf.catalog.operation.UpdateRequest;
@@ -105,6 +104,8 @@ public class FederationAdminServiceImpl implements FederationAdminService {
     private static final Logger LOGGER = LoggerFactory.getLogger(FederationAdminServiceImpl.class);
 
     private static final FilterFactory FILTER_FACTORY = new FilterFactoryImpl();
+
+    private static final int PAGE_SIZE = 1000;
 
     private CatalogFramework catalogFramework;
 
@@ -568,7 +569,8 @@ public class FederationAdminServiceImpl implements FederationAdminService {
                         FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.TAGS),
                                 RegistryConstants.REGISTRY_TAG));
 
-        Query query = new QueryImpl(filter);
+        QueryImpl query = new QueryImpl(filter);
+        query.setPageSize(PAGE_SIZE);
         QueryRequest queryRequest = new QueryRequestImpl(query, sourceIds);
 
         Subject systemSubject = security.getSystemSubject();
@@ -854,8 +856,9 @@ public class FederationAdminServiceImpl implements FederationAdminService {
 
         SortBy sortBy = FILTER_FACTORY.sort(Metacard.CREATED, SortOrder.ASCENDING);
 
-        Query query = new QueryImpl(filter);
-        ((QueryImpl) query).setSortBy(sortBy);
+        QueryImpl query = new QueryImpl(filter);
+        query.setSortBy(sortBy);
+        query.setPageSize(PAGE_SIZE);
 
         Subject systemSubject = security.getSystemSubject();
         QueryRequest queryRequest = new QueryRequestImpl(query, sourceIds);

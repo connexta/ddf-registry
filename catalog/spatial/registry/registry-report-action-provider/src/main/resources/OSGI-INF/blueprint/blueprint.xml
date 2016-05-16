@@ -16,12 +16,12 @@
 
     <bean id="registryActionProvider"
           class="org.codice.ddf.registry.report.action.provider.RegistryMetacardActionProvider">
-        <argument value="catalog.data.metacard.view"/>
+        <argument value="catalog.data.registry.view"/>
     </bean>
 
     <service ref="registryActionProvider" interface="ddf.action.ActionProvider">
         <service-properties>
-            <entry key="id" value="catalog.data.metacard.view"/>
+            <entry key="id" value="catalog.data.registry.view"/>
         </service-properties>
     </service>
 

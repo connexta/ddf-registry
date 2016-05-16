@@ -11,7 +11,7 @@
  * is distributed along with this program and can be found at
  * <http://www.gnu.org/licenses/lgpl.html>.
  */
-package org.codice.ddf.registry.api;
+package org.codice.ddf.registry.api.impl;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
@@ -25,13 +25,13 @@ import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.codice.ddf.cxf.SecureCxfClientFactory;
 import org.codice.ddf.parser.Parser;
 import org.codice.ddf.parser.xml.XmlParser;
-import org.codice.ddf.registry.api.impl.RegistryStoreImpl;
 import org.codice.ddf.registry.common.RegistryConstants;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
 import org.codice.ddf.spatial.ogc.csw.catalog.common.Csw;
@@ -39,7 +39,10 @@ import org.codice.ddf.spatial.ogc.csw.catalog.common.CswSourceConfiguration;
 import org.codice.ddf.spatial.ogc.csw.catalog.common.transformer.TransformerManager;
 import org.junit.Before;
 import org.junit.Test;
+import org.opengis.filter.Filter;
 import org.osgi.framework.BundleContext;
+import org.osgi.service.cm.Configuration;
+import org.osgi.service.cm.ConfigurationAdmin;
 
 import com.thoughtworks.xstream.converters.Converter;
 
@@ -47,11 +50,14 @@ import ddf.catalog.Constants;
 import ddf.catalog.data.Result;
 import ddf.catalog.data.impl.MetacardImpl;
 import ddf.catalog.data.impl.ResultImpl;
+import ddf.catalog.filter.FilterAdapter;
 import ddf.catalog.filter.proxy.builder.GeotoolsFilterBuilder;
 import ddf.catalog.operation.OperationTransaction;
 import ddf.catalog.operation.QueryRequest;
 import ddf.catalog.operation.SourceResponse;
 import ddf.catalog.operation.impl.OperationTransactionImpl;
+import ddf.catalog.operation.impl.QueryImpl;
+import ddf.catalog.operation.impl.QueryRequestImpl;
 import ddf.catalog.operation.impl.SourceResponseImpl;
 import ddf.catalog.operation.impl.UpdateRequestImpl;
 import ddf.catalog.source.UnsupportedQueryException;
@@ -145,6 +151,68 @@ public class TestRegistryStore {
         mcard.setAttribute(RegistryObjectMetacardType.REGISTRY_ID, "registryId");
         mcard.setContentTypeName(RegistryConstants.REGISTRY_NODE_METACARD_TYPE_NAME);
         mcard.setMetadata(xml);
+        mcard.setTitle("testRegistryMetacard");
         return mcard;
+    }
+
+    @Test
+    public void testSetAvailable() throws Exception {
+        RegistryStoreImplTest registryStore = new RegistryStoreImplTest();
+
+        ConfigurationAdmin mockConfigAdmin = mock(ConfigurationAdmin.class);
+        FilterAdapter mockFilterAdapter = mock(FilterAdapter.class);
+        Configuration mockConfig = mock(Configuration.class);
+
+        registryStore.setFilterBuilder(new GeotoolsFilterBuilder());
+        registryStore.setFilterAdapter(mockFilterAdapter);
+        registryStore.setConfigAdmin(mockConfigAdmin);
+        registryStore.setRegistryId("registryId");
+
+        when(mockFilterAdapter.adapt(any(), any())).thenReturn(true);
+        when(mockConfigAdmin.getConfiguration(any())).thenReturn(mockConfig);
+        when(mockConfig.getProperties()).thenReturn(new Hashtable<>());
+
+        registryStore.registryInfoQuery();
+
+        assertThat(registryStore.getRegistryId(), is("registryId"));
+        assertThat(registryStore.getRemoteName(), is("testRegistryMetacard"));
+    }
+
+    @Test
+    public void testQuery() throws Exception {
+
+        ConfigurationAdmin mockConfigAdmin = mock(ConfigurationAdmin.class);
+        FilterAdapter mockFilterAdapter = mock(FilterAdapter.class);
+        Configuration mockConfig = mock(Configuration.class);
+        Filter testFilter = mock(Filter.class);
+
+        RegistryStoreImplTest registryStore = new RegistryStoreImplTest();
+        QueryRequest testRequest = new QueryRequestImpl(new QueryImpl(testFilter));
+
+        registryStore.setFilterAdapter(mockFilterAdapter);
+        registryStore.setConfigAdmin(mockConfigAdmin);
+        registryStore.setRegistryId("registryId");
+
+        when(mockFilterAdapter.adapt(any(), any())).thenReturn(true);
+        when(mockConfigAdmin.getConfiguration(any())).thenReturn(mockConfig);
+        when(mockConfig.getProperties()).thenReturn(new Hashtable<>());
+
+        SourceResponse answer = registryStore.query(testRequest);
+        List<Result> testResults = answer.getResults();
+
+        assertThat(testResults.size(), is(1));
+        assertThat(testResults.get(0)
+                .getMetacard()
+                .getTitle(), is("testRegistryMetacard"));
+    }
+
+    private class RegistryStoreImplTest extends RegistryStoreImpl {
+
+        @Override
+        public SourceResponse queryResponse(QueryRequest request) {
+            List<Result> results = new ArrayList<>();
+            results.add(new ResultImpl(getDefaultMetacard()));
+            return new SourceResponseImpl(request, results);
+        }
     }
 }

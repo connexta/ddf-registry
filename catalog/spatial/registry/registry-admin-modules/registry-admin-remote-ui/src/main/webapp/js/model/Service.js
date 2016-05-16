@@ -92,59 +92,6 @@ define(function (require) {
             });
         },
 
-        makeEnableCall: function(){
-            var model = this;
-            var pid = model.get('id');
-            var url = [model.configUrl, "enableConfiguration", pid].join("/");
-            if (pid) {
-                return $.ajax({
-                    url: url,
-                    dataType: 'json'
-                }).done(function(){
-                    // massage some data to match the new backend pid.
-                    model.trigger('enabled');
-                    //enabling the model means the PID will be regenerated. This model no longer exists on the server.
-                    model.destroy();
-                }).fail(function(){
-                    new Error('Could not enable configuratoin ' + pid);
-                });
-            }
-
-            return $.Deferred().fail(new Error("Cannot enable since this model has no pid."));
-
-        },
-
-        makeDisableCall: function(){
-            var model = this;
-            var pid = model.get('id');
-            var url = [model.configUrl, "disableConfiguration", pid].join("/");
-            if (pid) {
-                return $.ajax({
-                    url: url,
-                    dataType: 'json'
-                }).done(function(){
-                    model.trigger('disabled');
-                    //disabling the model means the PID will be regenerated. This model no longer exists on the server.
-                    model.destroy();
-                }).fail(function(){
-                    new Error('Could not disable configuration ' + pid);
-                });
-            }
-
-            return $.Deferred().reject(new Error("Cannot enable since this model has no pid."));
-        },
-
-        // Used to make a call to the backend to disable the service that corresponds to the pid.
-        // Note: this does NOT affect the service the function is called on.
-        // Treat this as a static function
-        makeDisableCallByPid: function(pid){
-           var url = [this.configUrl, "disableConfiguration", pid].join("/");
-           return $.ajax({
-               url: url,
-               dataType: 'json'
-           });
-        },
-
         /**
          * When a model calls save the sync is called in Backbone.  I override it because this isn't a typical backbone
          * object
@@ -190,28 +137,6 @@ define(function (require) {
             }
             return deferred;
         },
-        createNewFromServer: function(deferred) {
-            var model = this,
-                addUrl = [model.configUrl, "add"].join("/");
-
-            model.makeConfigCall(model).done(function (data) {
-                var collect = model.collectedData(JSON.parse(data).value);
-                var jData = JSON.stringify(collect);
-
-                return $.ajax({
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: jData,
-                    url: addUrl
-                }).done(function (result) {
-                    deferred.resolve(result);
-                }).fail(function (error) {
-                    deferred.fail(error);
-                });
-            }).fail(function (error) {
-                deferred.fail(error);
-            });
-        },
         destroy: function() {
             var deferred = $.Deferred(),
                 model = this,
@@ -228,12 +153,6 @@ define(function (require) {
                 }).fail(function (error) {
                     deferred.fail(error);
                 });
-        },
-        initializeFromMSF: function(msf) {
-            this.set({"fpid":msf.get("id")});
-            this.set({"name":msf.get("name")});
-            this.get('properties').set({"service.factoryPid": msf.get("id")});
-            this.initializeFromService(msf);
         },
         initializeFromService: function(service) {
             var fpid = service.get('id');
@@ -306,12 +225,6 @@ define(function (require) {
                 return true;
             }
             return false;
-        },
-        initializeFromMSF: function(msf) {
-            this.set({"fpid":msf.get("id")});
-            this.set({"name":msf.get("name")});
-            this.initializeConfigurationFromMetatype(msf.get("metatype"));
-            this.configuration.set({"service.factoryPid": msf.get("id")});
         },
         initializeConfigurationFromMetatype: function(metatype) {
             var src = this;

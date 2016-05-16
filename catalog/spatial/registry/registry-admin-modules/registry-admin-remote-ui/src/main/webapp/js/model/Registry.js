@@ -16,13 +16,14 @@
 define([
     'wreqr',
     'js/model/Service.js',
+    'js/model/RemoteStatus.js',
     'backbone',
     'underscore',
     'poller',
     'js/model/Status.js',
     'backboneassociation'
 ],
-function (wreqr, Service, Backbone, _, poller, Status) {
+function (wreqr, Service, RemoteStatus, Backbone, _, poller, Status) {
     var Registry = {};
 
 
@@ -33,6 +34,7 @@ function (wreqr, Service, Backbone, _, poller, Status) {
     Registry.Model = Backbone.Model.extend({
         configUrl: "/jolokia/exec/org.codice.ddf.ui.admin.api.ConfigurationAdmin:service=ui",
         idAttribute: 'name',
+        remoteId: 'remoteName',
         pullAttribute: 'pullAllowed',
         pushAttribute: 'pushAllowed',
         pidAttributer: 'pid',
@@ -44,8 +46,10 @@ function (wreqr, Service, Backbone, _, poller, Status) {
 
             var pid = registry.id;
             var statusModel = new Status.Model(pid);
+            var remoteStatusModel = new RemoteStatus.Model(pid);
             statusModel.on('sync', function() {
                 wreqr.vent.trigger('status:update-'+pid, statusModel);
+                wreqr.vent.trigger('remoteStatus:update-'+pid, remoteStatusModel);
             });
 
             var options = {
@@ -53,7 +57,9 @@ function (wreqr, Service, Backbone, _, poller, Status) {
             };
 
             var statusPoller = poller.get(statusModel, options);
+            var remoteStatusPoller = poller.get(remoteStatusModel, options);
             statusPoller.start();
+            remoteStatusPoller.start();
         },
         removeRegistry: function(registry) {
             this.stopListening(registry);
@@ -72,13 +78,14 @@ function (wreqr, Service, Backbone, _, poller, Status) {
             if(!registryId){
                 registryId = configuration.get("properties").get('id');
             }
+            var remoteIdName = configuration.get("properties").get('remoteName');
             var allowPull = configuration.get("properties").get('pullAllowed');
             var allowPush = configuration.get("properties").get('pushAllowed');
             var id = configuration.get('id');
             if(this.get(registryId)) {
                 registry = this.get(registryId);
             } else {
-                registry = new Registry.Model({name: registryId, pullAllowed: allowPull, pushAllowed: allowPush, pid: id});
+                registry = new Registry.Model({name: registryId, remoteName: remoteIdName, pullAllowed: allowPull, pushAllowed: allowPush, pid: id});
                 this.add(registry);
             }
 
@@ -113,9 +120,7 @@ function (wreqr, Service, Backbone, _, poller, Status) {
                 this.model.get("value").each(function(service) {
                     if(!_.isEmpty(service.get("configurations"))) {
                         service.get("configurations").each(function(configuration) {
-                            var allowPull = configuration.get('pullAllowed');
-                            var allowPush = configuration.get('pushAllowed');
-                            collection.addRegistry(configuration, allowPull, allowPush);
+                            collection.addRegistry(configuration);
                         });
                     }
                 });

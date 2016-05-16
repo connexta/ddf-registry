@@ -330,7 +330,9 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
                 .text(RegistryConstants.REGISTRY_TAG);
         Subject systemSubject = Security.getInstance()
                 .getSystemSubject();
-        QueryRequest request = new QueryRequestImpl(new QueryImpl(registryFilter));
+        QueryImpl query = new QueryImpl(registryFilter);
+        query.setPageSize(1000);
+        QueryRequest request = new QueryRequestImpl(query);
         request.getProperties()
                 .put(SecurityConstants.SECURITY_SUBJECT, systemSubject);
 

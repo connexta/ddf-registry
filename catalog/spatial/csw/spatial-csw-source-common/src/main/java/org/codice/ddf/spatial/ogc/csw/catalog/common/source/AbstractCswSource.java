@@ -1671,11 +1671,11 @@ public abstract class AbstractCswSource extends MaskableImpl
             // Simple "ping" to ensure the source is responding
             newAvailability = (getCapabilities() != null);
             if (oldAvailability != newAvailability) {
-                availabilityChanged(newAvailability);
                 // If the source becomes available, configure it.
                 if (newAvailability) {
                     configureCswSource();
                 }
+                availabilityChanged(newAvailability);
             }
             return newAvailability;
         }
@@ -1785,5 +1785,9 @@ public abstract class AbstractCswSource extends MaskableImpl
     public void setEventServiceAddress(String eventServiceAddress) {
         this.cswSourceConfiguration.setEventServiceAddress(eventServiceAddress);
 
+    }
+
+    protected void addSourceMonitor(SourceMonitor sourceMonitor) {
+        sourceMonitors.add(sourceMonitor);
     }
 }

@@ -53,17 +53,7 @@ function (ich,Marionette,_,$,Q,ModalRegistry,EmptyView,wreqr,Utils,deleteRegistr
             _.bindAll(this);
             this.listenTo(this.model, 'change', this.render);
             this.listenTo(wreqr.vent, 'status:update-'+ this.model.attributes.pid, this.updateStatus);
-
-        },
-        serializeData: function(){
-            var data = {};
-
-            data.name = this.model.get('name');
-            data.available = this.model.get('available');
-            data.allowPush = this.model.get('pushAllowed');
-            data.allowPull = this.model.get('pullAllowed');
-
-            return data;
+            this.listenTo(wreqr.vent, 'remoteStatus:update-'+ this.model.attributes.pid, this.updateRemoteStatus);
         },
         editRegistry: function(evt){
             evt.stopPropagation();
@@ -73,6 +63,12 @@ function (ich,Marionette,_,$,Q,ModalRegistry,EmptyView,wreqr,Utils,deleteRegistr
         updateStatus: function(status) {
             this.model.set('available', status.get('value'));
             this.render();
+        },
+        updateRemoteStatus: function(remoteStatus) {
+            if(remoteStatus.get('value')){
+                this.model.set('remoteName', remoteStatus.get('value').remoteName);
+                this.render();
+            }
         }
     });
 

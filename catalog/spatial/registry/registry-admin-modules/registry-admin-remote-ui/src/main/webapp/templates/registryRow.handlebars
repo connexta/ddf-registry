@@ -25,6 +25,9 @@
     </div>
 </td>
 <td>
+    {{remoteName}}
+</td>
+<td>
     {{#if available}}
         <span class='label label-success'>Available</span>
     {{else}}
@@ -32,12 +35,12 @@
     {{/if}}
 </td>
 <td>
-    {{#if allowPush}}
+    {{#if pushAllowed}}
         <span class="fa fa-check"></span>
     {{/if}}
 </td>
 <td colspan="4">
-    {{#if allowPull}}
+    {{#if pullAllowed}}
         <span class="fa fa-check"></span>
     {{/if}}
 </td>

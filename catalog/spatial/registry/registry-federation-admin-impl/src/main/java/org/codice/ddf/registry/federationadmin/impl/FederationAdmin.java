@@ -57,7 +57,6 @@ import org.codice.ddf.configuration.SystemBaseUrl;
 import org.codice.ddf.parser.Parser;
 import org.codice.ddf.parser.ParserConfigurator;
 import org.codice.ddf.parser.ParserException;
-import org.codice.ddf.registry.api.RegistryStore;
 import org.codice.ddf.registry.common.RegistryConstants;
 import org.codice.ddf.registry.common.metacard.RegistryObjectMetacardType;
 import org.codice.ddf.registry.federationadmin.FederationAdminMBean;
@@ -65,7 +64,6 @@ import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminService;
 import org.codice.ddf.registry.schemabindings.RegistryPackageUtils;
 import org.codice.ddf.registry.schemabindings.RegistryPackageWebConverter;
-import org.codice.ddf.ui.admin.api.ConfigurationAdminExt;
 import org.geotools.filter.FilterFactoryImpl;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory;
@@ -75,8 +73,6 @@ import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
 import org.osgi.service.cm.Configuration;
-import org.osgi.service.cm.ConfigurationAdmin;
-import org.osgi.service.metatype.ObjectClassDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,7 +91,6 @@ import ddf.catalog.operation.DeleteRequest;
 import ddf.catalog.operation.DeleteResponse;
 import ddf.catalog.operation.Query;
 import ddf.catalog.operation.QueryResponse;
-import ddf.catalog.operation.SourceResponse;
 import ddf.catalog.operation.impl.CreateRequestImpl;
 import ddf.catalog.operation.impl.DeleteRequestImpl;
 import ddf.catalog.operation.impl.QueryImpl;
@@ -141,11 +136,6 @@ public class FederationAdmin implements FederationAdminMBean {
 
     private static final String DISABLED = "_disabled";
 
-    private static final String TEMP_REGISTRY_ID = "temp-id";
-
-    private static final String REGISTRY_FILTER =
-            "(|(service.factoryPid=*Registry*Store*)(service.factoryPid=*registry*store*))";
-
     private static final String TRANSIENT_VALUES_KEY = "TransientValues";
 
     private static final String AUTO_POPULATE_VALUES_KEY = "autoPopulateValues";
@@ -172,7 +162,7 @@ public class FederationAdmin implements FederationAdminMBean {
 
     private ParserConfigurator marshalConfigurator;
 
-    private AdminRegistryHelper helper;
+    private AdminHelper helper;
 
     private CatalogFramework catalogFramework;
 
@@ -182,9 +172,9 @@ public class FederationAdmin implements FederationAdminMBean {
 
     private Map<String, Map<String, String>> endpointMap = new HashMap<>();
 
-    public FederationAdmin(ConfigurationAdmin configurationAdmin) {
+    public FederationAdmin(AdminHelper helper) {
         configureMBean();
-        helper = getAdminRegistryHelper(configurationAdmin);
+        this.helper = helper;
     }
 
     @Override
@@ -204,10 +194,7 @@ public class FederationAdmin implements FederationAdminMBean {
         }
 
         if (!registryPackage.isSetHome()) {
-            String home = SystemBaseUrl.getBaseUrl();
-            if (StringUtils.isNotBlank(home)) {
-                registryPackage.setHome(home);
-            }
+            registryPackage.setHome(SystemBaseUrl.getBaseUrl());
         }
 
         if (!registryPackage.isSetObjectType()) {
@@ -439,7 +426,7 @@ public class FederationAdmin implements FederationAdminMBean {
                     }
                     metatype.put(MAP_ENTRY_CONFIGURATIONS, configurations);
                 }
-            } catch (Exception e) {
+            } catch (InvalidSyntaxException | IOException e) {
                 LOGGER.warn("Error getting registry info: {}", e.getMessage());
             }
         }
@@ -487,7 +474,7 @@ public class FederationAdmin implements FederationAdminMBean {
             throws UnsupportedQueryException, SourceUnavailableException, FederationException {
         List<Serializable> updatedPublishedLocations = new ArrayList<>();
 
-        if (CollectionUtils.isEmpty(destinations)) {
+        if (source == null || source.isEmpty() || destinations == null) {
             return updatedPublishedLocations;
         }
 
@@ -504,9 +491,6 @@ public class FederationAdmin implements FederationAdminMBean {
         if (!CollectionUtils.isEmpty(metacards)) {
             Metacard metacard = metacards.get(0)
                     .getMetacard();
-            if (metacard == null) {
-                return updatedPublishedLocations;
-            }
 
             List<Serializable> currentlyPublishedLocations = new ArrayList<>();
             Attribute publishedLocations =
@@ -537,16 +521,11 @@ public class FederationAdmin implements FederationAdminMBean {
                     if (createResponse.getProcessingErrors()
                             .isEmpty()) {
                         updatedPublishedLocations.add(id);
+                    } else {
+                        LOGGER.error("Unable to create registry metacard in catalogStore {}", id);
                     }
                 } catch (IngestException e) {
-                    LOGGER.error("Unable to create metacard in catalogStore {}", id, e);
-                    if (checkIfMetacardExists(id,
-                            metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
-                                    .getValue()
-                                    .toString())) {
-                        //The metacard is still in the catalogStore, thus it was persisted
-                        updatedPublishedLocations.add(id);
-                    }
+                    LOGGER.error("Unable to create registry metacard in catalogStore {}", id, e);
                 }
             }
             for (String id : unpublishLocations) {
@@ -554,16 +533,14 @@ public class FederationAdmin implements FederationAdminMBean {
                 try {
                     DeleteResponse deleteResponse = catalogStoreMap.get(id)
                             .delete(deleteRequest);
-                } catch (IngestException e) {
-                    LOGGER.error("Unable to delete metacard from catalogStore {}", id, e);
-                    if (checkIfMetacardExists(id,
-                            metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
-                                    .getValue()
-                                    .toString())) {
-                        //The metacard is still in the catalogStore, thus wasn't unpublished
+                    if (!deleteResponse.getProcessingErrors()
+                            .isEmpty()) {
+                        LOGGER.error("Unable to delete registry metacard in catalogStore {}", id);
                         updatedPublishedLocations.add(id);
                     }
-
+                } catch (IngestException e) {
+                    LOGGER.error("Unable to delete metacard from catalogStore {}", id, e);
+                    updatedPublishedLocations.add(id);
                 }
             }
 
@@ -602,20 +579,6 @@ public class FederationAdmin implements FederationAdminMBean {
             return true;
         }
         return !current.containsAll(updated) || !updated.containsAll(current);
-    }
-
-    private Boolean checkIfMetacardExists(String storeId, String registryId)
-            throws UnsupportedQueryException {
-
-        Filter filter = FILTER_FACTORY.and(FILTER_FACTORY.like(FILTER_FACTORY.property(
-                RegistryObjectMetacardType.REGISTRY_ID), registryId),
-                FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.TAGS),
-                        RegistryConstants.REGISTRY_TAG));
-
-        Query query = new QueryImpl(filter);
-        SourceResponse queryResponse = catalogStoreMap.get(storeId)
-                .query(new QueryRequestImpl(query));
-        return queryResponse.getHits() > 0;
     }
 
     private Metacard getRegistryMetacardFromRegistryPackage(RegistryPackageType registryPackage)
@@ -834,72 +797,6 @@ public class FederationAdmin implements FederationAdminMBean {
             return bundle.getBundleContext();
         }
         return null;
-    }
-
-    protected AdminRegistryHelper getAdminRegistryHelper(ConfigurationAdmin configurationAdmin) {
-        return new AdminRegistryHelper(configurationAdmin);
-    }
-
-    protected static class AdminRegistryHelper {
-        private ConfigurationAdmin configurationAdmin;
-
-        public AdminRegistryHelper(ConfigurationAdmin configurationAdmin) {
-            this.configurationAdmin = configurationAdmin;
-        }
-
-        private BundleContext getBundleContext() {
-            Bundle bundle = FrameworkUtil.getBundle(this.getClass());
-            if (bundle != null) {
-                return bundle.getBundleContext();
-            }
-            return null;
-        }
-
-        protected List<Source> getRegistrySources()
-                throws org.osgi.framework.InvalidSyntaxException {
-            List<Source> sources = new ArrayList<>();
-            List<ServiceReference<? extends Source>> refs = new ArrayList<>();
-            refs.addAll(getBundleContext().getServiceReferences(RegistryStore.class, null));
-
-            for (ServiceReference<? extends Source> ref : refs) {
-                sources.add(getBundleContext().getService(ref));
-            }
-
-            return sources;
-        }
-
-        protected List<Map<String, Object>> getMetatypes() {
-            ConfigurationAdminExt configAdminExt = new ConfigurationAdminExt(configurationAdmin);
-            return configAdminExt.addMetaTypeNamesToMap(configAdminExt.getFactoryPidObjectClasses(),
-                    REGISTRY_FILTER,
-                    "service.factoryPid");
-        }
-
-        protected List getConfigurations(Map metatype) throws InvalidSyntaxException, IOException {
-            return org.apache.shiro.util.CollectionUtils.asList(configurationAdmin.listConfigurations(
-                    "(|(service.factoryPid=" + metatype.get(MAP_ENTRY_ID) + ")(service.factoryPid="
-                            + metatype.get(MAP_ENTRY_ID) + DISABLED + "))"));
-        }
-
-        protected Configuration getConfiguration(ConfiguredService cs) throws IOException {
-            return configurationAdmin.getConfiguration(cs.getConfigurationPid());
-        }
-
-        protected String getBundleName(Configuration config) {
-            ConfigurationAdminExt configAdminExt = new ConfigurationAdminExt(configurationAdmin);
-            return configAdminExt.getName(getBundleContext().getBundle(config.getBundleLocation()));
-        }
-
-        protected long getBundleId(Configuration config) {
-            return getBundleContext().getBundle(config.getBundleLocation())
-                    .getBundleId();
-        }
-
-        protected String getName(Configuration config) {
-            ConfigurationAdminExt configAdminExt = new ConfigurationAdminExt(configurationAdmin);
-            return ((ObjectClassDefinition) configAdminExt.getFactoryPidObjectClasses()
-                    .get(config.getFactoryPid())).getName();
-        }
     }
 
     public void setCatalogFramework(CatalogFramework catalogFramework) {

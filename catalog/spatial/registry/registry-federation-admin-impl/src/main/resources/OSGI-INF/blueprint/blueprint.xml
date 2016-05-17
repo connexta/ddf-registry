@@ -17,14 +17,16 @@
 
     <bean id="federationAdmin" class="org.codice.ddf.registry.federationadmin.impl.FederationAdmin"
           destroy-method="destroy" init-method="init">
-        <argument ref="configurationAdmin"/>
+        <argument ref="adminHelper"/>
         <property name="catalogFramework" ref="catalogFramework"/>
         <property name="catalogStoreMap" ref="catalogStoreMap"/>
         <property name="federationAdminService" ref="federationAdminService"/>
         <property name="parser" ref="xmlParser"/>
         <property name="registryTransformer" ref="inputTransformer"/>
     </bean>
-
+    <bean id="adminHelper" class="org.codice.ddf.registry.federationadmin.impl.AdminHelper">
+        <argument ref="configurationAdmin"/>
+    </bean>
     <bean id="catalogStoreMap" class="ddf.catalog.util.impl.DescribableServiceMap"/>
 
     <reference id="catalogFramework" interface="ddf.catalog.CatalogFramework"/>

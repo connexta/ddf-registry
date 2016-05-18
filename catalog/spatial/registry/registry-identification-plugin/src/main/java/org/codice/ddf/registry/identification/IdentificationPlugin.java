@@ -92,16 +92,6 @@ public class IdentificationPlugin implements PreIngestPlugin, PostIngestPlugin {
 
     private Set<String> registryIds = ConcurrentHashMap.newKeySet();
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(IdentificationPlugin.class);
-
-    private static final String BINDING_TYPE = "bindingType";
-
-    private static final String DISABLED_CONFIGURATION_SUFFIX = "_disabled";
-
-    private static final String ID = "id";
-
-    private static final String SHORTNAME = "shortname";
-
     @Override
     public CreateRequest process(CreateRequest input)
             throws PluginExecutionException, StopProcessingException {

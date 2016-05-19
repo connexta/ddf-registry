@@ -185,7 +185,7 @@ public class RegistryStoreImpl extends AbstractCswStore implements RegistryStore
     * This is due to the inability to mock or spy an abstract super class method that is being
     * overwritten without resorting to... Power Mock.
     */
-    protected SourceResponse queryResponse(QueryRequest request) throws UnsupportedQueryException {
+    SourceResponse queryResponse(QueryRequest request) throws UnsupportedQueryException {
         return super.query(request);
     }
 
@@ -284,7 +284,7 @@ public class RegistryStoreImpl extends AbstractCswStore implements RegistryStore
         isAvailable();
     }
 
-    protected void registryInfoQuery() throws UnsupportedQueryException {
+    void registryInfoQuery() throws UnsupportedQueryException {
         List<Filter> filters = new ArrayList<>();
         filters.add(filterBuilder.attribute(Metacard.TAGS)
                 .is()

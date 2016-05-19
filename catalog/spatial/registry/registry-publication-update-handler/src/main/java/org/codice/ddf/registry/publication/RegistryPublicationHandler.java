@@ -38,8 +38,6 @@ public class RegistryPublicationHandler implements EventHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RegistryPublicationHandler.class);
 
-    private static final String METACARD_PROPERTY = "ddf.catalog.event.metacard";
-
     private FederationAdminService adminService;
 
     private ExecutorService executor;
@@ -66,7 +64,7 @@ public class RegistryPublicationHandler implements EventHandler {
 
     @Override
     public void handleEvent(Event event) {
-        Metacard mcard = (Metacard) event.getProperty(METACARD_PROPERTY);
+        Metacard mcard = (Metacard) event.getProperty(RegistryConstants.METACARD_PROPERTY);
         if (mcard == null) {
             return;
         }

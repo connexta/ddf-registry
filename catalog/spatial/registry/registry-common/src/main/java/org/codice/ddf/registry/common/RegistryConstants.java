@@ -50,4 +50,8 @@ public class RegistryConstants {
 
     public static final String GUID_PREFIX = "urn:uuid:";
 
+    public static final String BINDING_TYPE = "bindingType";
+
+    public static final String METACARD_PROPERTY= "ddf.catalog.event.metacard";
+
 }

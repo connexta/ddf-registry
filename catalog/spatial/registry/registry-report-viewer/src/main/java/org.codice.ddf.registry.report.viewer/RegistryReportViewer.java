@@ -62,8 +62,6 @@ public class RegistryReportViewer {
 
     private String registryName = "";
 
-    private static final String BINDING_TYPE = "bindingType";
-
     private FederationAdminService federationAdminService;
 
     private ClassPathTemplateLoader templateLoader;
@@ -159,13 +157,13 @@ public class RegistryReportViewer {
                     Map<String, Object> bindingProperties;
                     String bindingType;
                     bindingProperties = getCustomSlots(binding.getSlot());
-                    if (!bindingProperties.containsKey(BINDING_TYPE) || bindingProperties.get(
-                            BINDING_TYPE) == null) {
+                    if (!bindingProperties.containsKey(RegistryConstants.BINDING_TYPE) || bindingProperties.get(
+                            RegistryConstants.BINDING_TYPE) == null) {
                         continue;
                     }
-                    bindingType = bindingProperties.get(BINDING_TYPE)
+                    bindingType = bindingProperties.get(RegistryConstants.BINDING_TYPE)
                             .toString();
-                    bindingProperties.remove(BINDING_TYPE);
+                    bindingProperties.remove(RegistryConstants.BINDING_TYPE);
                     serviceProperties.put(bindingType, bindingProperties);
                 }
                 serviceInfo.put(serviceName, serviceProperties);

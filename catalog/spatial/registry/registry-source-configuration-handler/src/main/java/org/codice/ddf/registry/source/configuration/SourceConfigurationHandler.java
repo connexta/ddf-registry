@@ -68,10 +68,6 @@ public class SourceConfigurationHandler implements EventHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SourceConfigurationHandler.class);
 
-    private static final String METACARD_PROPERTY = "ddf.catalog.event.metacard";
-
-    private static final String BINDING_TYPE = "bindingType";
-
     private static final String DISABLED_CONFIGURATION_SUFFIX = "_disabled";
 
     private static final String ID = "id";
@@ -123,7 +119,7 @@ public class SourceConfigurationHandler implements EventHandler {
     @Override
     public void handleEvent(Event event) {
         LOGGER.debug("Received event");
-        Metacard mcard = (Metacard) event.getProperty(METACARD_PROPERTY);
+        Metacard mcard = (Metacard) event.getProperty(RegistryConstants.METACARD_PROPERTY);
         if (mcard == null) {
             return;
         }
@@ -270,15 +266,15 @@ public class SourceConfigurationHandler implements EventHandler {
 
             Hashtable<String, Object> serviceConfigurationProperties = new Hashtable<>();
 
-            if (slotMap.get(BINDING_TYPE) == null
+            if (slotMap.get(RegistryConstants.BINDING_TYPE) == null
                     || CollectionUtils.isEmpty(RegistryPackageUtils.getSlotStringValues(slotMap.get(
-                    BINDING_TYPE)
+                    RegistryConstants.BINDING_TYPE)
                     .get(0)))) {
                 continue;
             }
 
             String factoryPidMask = RegistryPackageUtils.getSlotStringValues(slotMap.get(
-                    BINDING_TYPE)
+                    RegistryConstants.BINDING_TYPE)
                     .get(0))
                     .get(0);
             String factoryPid = bindingTypeToFactoryPidMap.get(factoryPidMask);
@@ -391,15 +387,15 @@ public class SourceConfigurationHandler implements EventHandler {
             Map<String, List<SlotType1>> slotMap =
                     RegistryPackageUtils.getNameSlotMapDuplicateSlotNamesAllowed(bindingType.getSlot());
 
-            if (slotMap.get(BINDING_TYPE) == null
+            if (slotMap.get(RegistryConstants.BINDING_TYPE) == null
                     || CollectionUtils.isEmpty(RegistryPackageUtils.getSlotStringValues(slotMap.get(
-                    BINDING_TYPE)
+                    RegistryConstants.BINDING_TYPE)
                     .get(0)))) {
                 continue;
             }
 
             String factoryPidMask = RegistryPackageUtils.getSlotStringValues(slotMap.get(
-                    BINDING_TYPE)
+                    RegistryConstants.BINDING_TYPE)
                     .get(0))
                     .get(0);
 

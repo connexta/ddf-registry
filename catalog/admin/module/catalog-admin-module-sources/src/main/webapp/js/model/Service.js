@@ -342,18 +342,12 @@ define(function(require) {
     });
 
     Service.RegistryService = Backbone.AssociatedModel.extend({
-        url: "/jolokia/exec/org.codice.ddf.registry:type=FederationAdminMBean/allRegistryInfo",
-            parse: function(data) {
-                return data;
-            }
+        url: "/jolokia/exec/org.codice.ddf.registry:type=FederationAdminMBean/allRegistryInfo"
     });
 
 
     Service.RegistryMetacards = Backbone.AssociatedModel.extend({
         url: "/jolokia/exec/org.codice.ddf.registry:type=FederationAdminMBean/allRegistryMetacards",
-        parse: function(data) {
-            return data;
-        },
         publishTo: function(idToPublishFrom, idsToPublishTo) {
             var data = {
                 type: 'EXEC',

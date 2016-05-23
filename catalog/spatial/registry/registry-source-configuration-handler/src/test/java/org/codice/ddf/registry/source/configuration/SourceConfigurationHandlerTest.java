@@ -17,7 +17,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -34,6 +36,7 @@ import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.codice.ddf.parser.Parser;
@@ -60,7 +63,9 @@ import ddf.catalog.data.impl.MetacardImpl;
 public class SourceConfigurationHandlerTest {
     private Parser parser;
 
-    private FederationAdminService service;
+    private FederationAdminService adminService;
+
+    private ExecutorService executorService;
 
     private ConfigurationAdmin configAdmin;
 
@@ -78,15 +83,22 @@ public class SourceConfigurationHandlerTest {
 
     private MetacardImpl mcard;
 
+    private Event createEvent;
+
+    private Event updateEvent;
+
+    private Event deleteEvent;
+
     @Before
     public void setUp() throws Exception {
         parser = new XmlParser();
-        service = mock(FederationAdminService.class);
+        adminService = mock(FederationAdminService.class);
         configAdmin = mock(ConfigurationAdmin.class);
         metaTypeService = mock(MetaTypeService.class);
         bundleContext = mock(BundleContext.class);
+        executorService = mock(ExecutorService.class);
 
-        sch = new SourceConfigurationHandler(service) {
+        sch = new SourceConfigurationHandler(adminService, executorService) {
             @Override
             protected BundleContext getBundleContext() {
                 return bundleContext;
@@ -112,7 +124,7 @@ public class SourceConfigurationHandlerTest {
                 "attDesc",
                 "attValue");
 
-        when(service.getRegistryMetacards()).thenReturn(new ArrayList());
+        when(adminService.getRegistryMetacards()).thenReturn(new ArrayList());
 
         when(bundleContext.getBundles()).thenReturn(new Bundle[] {bundle});
         when(configAdmin.listConfigurations("(id=TestRegNode")).thenReturn(null);
@@ -131,45 +143,40 @@ public class SourceConfigurationHandlerTest {
         mcard.setAttribute(RegistryObjectMetacardType.REGISTRY_IDENTITY_NODE, true);
         mcard.setMetadata(getMetadata("/csw-rim-node-csw-binding.xml"));
         mcard.setTitle("TestRegNode");
+
+        Dictionary<String, Object> eventProperties = new Hashtable<>();
+        eventProperties.put("ddf.catalog.event.metacard", mcard);
+        createEvent = new Event("ddf/catalog/event/CREATED", eventProperties);
+        updateEvent = new Event("ddf/catalog/event/UPDATED", eventProperties);
+        deleteEvent = new Event("ddf/catalog/event/DELETED", eventProperties);
+
     }
 
     @Test
     public void testNullMetacard() {
-        FederationAdminService service = mock(FederationAdminService.class);
-        SourceConfigurationHandler sch = new SourceConfigurationHandler(service);
         Dictionary<String, Object> eventProperties = new Hashtable<>();
         Event event = new Event("ddf/catalog/event/CREATED", eventProperties);
-        ExecutorService executorService = mock(ExecutorService.class);
-        sch.setExecutorService(executorService);
         sch.handleEvent(event);
         verify(executorService, never()).execute(any(Runnable.class));
     }
 
     @Test
     public void testNonRegistryMetacard() {
-        FederationAdminService service = mock(FederationAdminService.class);
-        SourceConfigurationHandler sch = new SourceConfigurationHandler(service);
         MetacardImpl mcard = new MetacardImpl();
         mcard.setAttribute(Metacard.TAGS, Metacard.DEFAULT_TAG);
         Dictionary<String, Object> eventProperties = new Hashtable<>();
         eventProperties.put("ddf.catalog.event.metacard", mcard);
         Event event = new Event("ddf/catalog/event/CREATED", eventProperties);
-        ExecutorService executorService = mock(ExecutorService.class);
-        sch.setExecutorService(executorService);
         sch.handleEvent(event);
         verify(executorService, never()).execute(any(Runnable.class));
     }
 
     @Test
     public void testRegistryMetacardExecutorCall() {
-        FederationAdminService service = mock(FederationAdminService.class);
-        SourceConfigurationHandler sch = new SourceConfigurationHandler(service);
         MetacardImpl mcard = new MetacardImpl();
         mcard.setAttribute(Metacard.TAGS, RegistryConstants.REGISTRY_TAG);
         Dictionary<String, Object> eventProperties = new Hashtable<>();
         eventProperties.put("ddf.catalog.event.metacard", mcard);
-        ExecutorService executorService = mock(ExecutorService.class);
-        sch.setExecutorService(executorService);
         Event event = new Event("ddf/catalog/event/CREATED", eventProperties);
         sch.handleEvent(event);
         event = new Event("ddf/catalog/event/UPDATED", eventProperties);
@@ -183,21 +190,15 @@ public class SourceConfigurationHandlerTest {
     public void testDefaultConfigurationLocalNodeCreate() throws Exception {
 
         ArgumentCaptor<Dictionary> captor = ArgumentCaptor.forClass(Dictionary.class);
-
-        sch.processCreate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(createEvent);
 
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source_disabled",
                 null);
         verify(config).update(captor.capture());
         Dictionary passedValues = captor.getValue();
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
         assertThat(passedValues.get("attId"), equalTo("attValue"));
-        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
-        assertThat(passedValues.get("id"), equalTo("TestRegNode"));
-        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
-        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
-        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
+        assertCswProperties(passedValues);
 
     }
 
@@ -206,14 +207,13 @@ public class SourceConfigurationHandlerTest {
 
         ArgumentCaptor<Dictionary> captor = ArgumentCaptor.forClass(Dictionary.class);
         mcard.setAttribute(Metacard.TITLE, null);
-        sch.processCreate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(createEvent);
 
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source_disabled",
                 null);
         verify(config).update(captor.capture());
         Dictionary passedValues = captor.getValue();
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
         assertThat(passedValues.get("attId"), equalTo("attValue"));
         assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
         assertThat(passedValues.get("id"), equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
@@ -227,7 +227,8 @@ public class SourceConfigurationHandlerTest {
     public void testDefaultConfigurationLocalNodeCreateNoBindingType() throws Exception {
 
         mcard.setMetadata(this.getMetadata("/csw-rim-node-missing-type-binding.xml"));
-        sch.processCreate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(createEvent);
 
         verify(configAdmin, never()).createFactoryConfiguration(anyString(), anyString());
     }
@@ -239,20 +240,15 @@ public class SourceConfigurationHandlerTest {
 
         mcard.setAttribute(RegistryObjectMetacardType.REGISTRY_IDENTITY_NODE, null);
 
-        sch.processCreate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(createEvent);
 
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source_disabled",
                 null);
         verify(config).update(captor.capture());
         Dictionary passedValues = captor.getValue();
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
         assertThat(passedValues.get("attId"), equalTo("attValue"));
-        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
-        assertThat(passedValues.get("id"), equalTo("TestRegNode"));
-        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
-        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
-        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
+        assertCswProperties(passedValues);
 
     }
 
@@ -262,19 +258,14 @@ public class SourceConfigurationHandlerTest {
         ArgumentCaptor<Dictionary> captor = ArgumentCaptor.forClass(Dictionary.class);
         mcard.setAttribute(RegistryObjectMetacardType.REGISTRY_IDENTITY_NODE, null);
         sch.setActivateConfigurations(true);
-        sch.processCreate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(createEvent);
 
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source", null);
         verify(config).update(captor.capture());
         Dictionary passedValues = captor.getValue();
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
         assertThat(passedValues.get("attId"), equalTo("attValue"));
-        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
-        assertThat(passedValues.get("id"), equalTo("TestRegNode"));
-        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
-        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
-        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
+        assertCswProperties(passedValues);
 
     }
 
@@ -292,18 +283,14 @@ public class SourceConfigurationHandlerTest {
         when(config.getProperties()).thenReturn(props);
         when(config.getFactoryPid()).thenReturn("Csw_Federated_Source_disabled");
         sch.setActivateConfigurations(true);
-        sch.processCreate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(createEvent);
         verify(config, times(1)).delete();
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source", null);
-        verify(config).update(captor.capture());
-        Dictionary passedValues = captor.getValue();
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
-        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
-        assertThat(passedValues.get("id"), equalTo("TestRegNode"));
-        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
-        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
-        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
+        verify(config, times(2)).update(captor.capture());
+        Dictionary passedValues = captor.getAllValues()
+                .get(1);
+        assertCswProperties(passedValues);
         assertThat(passedValues.get("origConfig"), equalTo("origConfigValue"));
     }
 
@@ -322,18 +309,13 @@ public class SourceConfigurationHandlerTest {
         when(config.getProperties()).thenReturn(props);
         when(config.getFactoryPid()).thenReturn("Csw_Federated_Source");
         sch.setActivateConfigurations(true);
-        sch.processCreate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(createEvent);
         verify(config, never()).delete();
         verify(configAdmin, never()).createFactoryConfiguration("Csw_Federated_Source", null);
         verify(config).update(captor.capture());
         Dictionary passedValues = captor.getValue();
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
-        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
-        assertThat(passedValues.get("id"), equalTo("TestRegNode"));
-        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
-        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
-        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
+        assertCswProperties(passedValues);
         assertThat(passedValues.get("origConfig"), equalTo("origConfigValue"));
     }
 
@@ -349,23 +331,22 @@ public class SourceConfigurationHandlerTest {
         props.put("origConfig", "origConfigValue");
         props.put(RegistryObjectMetacardType.REGISTRY_ID,
                 "urn:uuid:2014ca7f59ac46f495e32b4a67a51276");
+        Configuration newConfig = mock(Configuration.class);
+        when(newConfig.getFactoryPid()).thenReturn("Some_Other_Source_disabled");
+        when(configAdmin.createFactoryConfiguration("Some_Other_Source_disabled", null)).thenReturn(
+                newConfig);
         when(config.getProperties()).thenReturn(props);
         when(config.getFactoryPid()).thenReturn("Some_Other_Source");
         sch.setActivateConfigurations(true);
-        sch.processCreate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(createEvent);
         verify(config, times(1)).delete();
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source", null);
         verify(config).update(captor.capture());
         List<Dictionary> values = captor.getAllValues();
         assertThat(values.size(), equalTo(1));
         Dictionary passedValues = values.get(0);
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
-        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
-        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
-        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
-        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
-
+        assertCswProperties(passedValues);
     }
 
     @Test
@@ -374,7 +355,8 @@ public class SourceConfigurationHandlerTest {
         mcard.setAttribute(RegistryObjectMetacardType.REGISTRY_IDENTITY_NODE, null);
         mcard.setMetadata(getMetadata("/csw-rim-node-no-binding.xml"));
         sch.setActivateConfigurations(true);
-        sch.processCreate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(createEvent);
         verify(config, never()).delete();
         verify(configAdmin, never()).createFactoryConfiguration(anyString(), anyString());
     }
@@ -394,20 +376,15 @@ public class SourceConfigurationHandlerTest {
         when(config.getProperties()).thenReturn(props);
         when(config.getFactoryPid()).thenReturn("Some_Other_Source");
         sch.setActivateConfigurations(true);
-        sch.processUpdate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(updateEvent);
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source_disabled",
                 null);
         verify(config).update(captor.capture());
         List<Dictionary> values = captor.getAllValues();
         assertThat(values.size(), equalTo(1));
         Dictionary passedValues = values.get(0);
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
-        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
-        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
-        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
-        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
-
+        assertCswProperties(passedValues);
     }
 
     @Test
@@ -422,24 +399,23 @@ public class SourceConfigurationHandlerTest {
         props.put("origConfig", "origConfigValue");
         props.put(RegistryObjectMetacardType.REGISTRY_ID,
                 "urn:uuid:2014ca7f59ac46f495e32b4a67a51276");
+        Configuration newConfig = mock(Configuration.class);
+        when(newConfig.getFactoryPid()).thenReturn("Some_Other_Source_disabled");
+        when(configAdmin.createFactoryConfiguration("Some_Other_Source_disabled", null)).thenReturn(
+                newConfig);
         when(config.getProperties()).thenReturn(props);
         when(config.getFactoryPid()).thenReturn("Some_Other_Source");
         sch.setPreserveActiveConfigurations(false);
         sch.setActivateConfigurations(true);
-        sch.processUpdate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(updateEvent);
         verify(config, times(1)).delete();
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source", null);
         verify(config).update(captor.capture());
         List<Dictionary> values = captor.getAllValues();
         assertThat(values.size(), equalTo(1));
         Dictionary passedValues = values.get(0);
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
-        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
-        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
-        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
-        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
-
+        assertCswProperties(passedValues);
     }
 
     @Test
@@ -455,26 +431,27 @@ public class SourceConfigurationHandlerTest {
                 "urn:uuid:2014ca7f59ac46f495e32b4a67a51276");
         when(config.getProperties()).thenReturn(props);
         when(config.getFactoryPid()).thenReturn("Some_Other_Source");
+        Configuration newConfig = mock(Configuration.class);
+        when(newConfig.getFactoryPid()).thenReturn("Some_Other_Source_disabled");
+        when(configAdmin.createFactoryConfiguration("Some_Other_Source_disabled", null)).thenReturn(
+                newConfig);
         List<String> priority = new ArrayList();
         priority.add("Top_Priority_Source");
         priority.add("CSW_2.0.2");
         sch.setSourceActivationPriorityOrder(priority);
         sch.setPreserveActiveConfigurations(false);
         sch.setActivateConfigurations(true);
-        sch.processUpdate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(updateEvent);
         verify(config, times(1)).delete();
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source", null);
+        verify(configAdmin, times(1)).createFactoryConfiguration("Some_Other_Source_disabled",
+                null);
         verify(config).update(captor.capture());
         List<Dictionary> values = captor.getAllValues();
         assertThat(values.size(), equalTo(1));
         Dictionary passedValues = values.get(0);
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
-        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
-        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
-        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
-        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
-
+        assertCswProperties(passedValues);
     }
 
     @Test
@@ -488,6 +465,10 @@ public class SourceConfigurationHandlerTest {
         props.put("origConfig", "origConfigValue");
         props.put(RegistryObjectMetacardType.REGISTRY_ID,
                 "urn:uuid:2014ca7f59ac46f495e32b4a67a51276");
+        Configuration newConfig = mock(Configuration.class);
+        when(newConfig.getFactoryPid()).thenReturn("Some_Other_Source_disabled");
+        when(configAdmin.createFactoryConfiguration("Some_Other_Source_disabled", null)).thenReturn(
+                newConfig);
         when(config.getProperties()).thenReturn(props);
         when(config.getFactoryPid()).thenReturn("Some_Other_Source");
         List<String> priority = new ArrayList<>();
@@ -500,20 +481,15 @@ public class SourceConfigurationHandlerTest {
         sch.setSourceActivationPriorityOrder(priority);
         sch.setPreserveActiveConfigurations(false);
         sch.setActivateConfigurations(true);
-        sch.processUpdate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(updateEvent);
         verify(config, times(1)).delete();
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source", null);
         verify(config).update(captor.capture());
         List<Dictionary> values = captor.getAllValues();
         assertThat(values.size(), equalTo(1));
         Dictionary passedValues = values.get(0);
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
-        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
-        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
-        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
-        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
-
+        assertCswProperties(passedValues);
     }
 
     @Test
@@ -529,18 +505,12 @@ public class SourceConfigurationHandlerTest {
         when(config.getProperties()).thenReturn(props);
         when(config.getFactoryPid()).thenReturn("Csw_Federated_Source_disabled");
 
-        sch.processUpdate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(updateEvent);
 
         verify(config).update(captor.capture());
         Dictionary passedValues = captor.getValue();
-        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
-                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
-        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
-        assertThat(passedValues.get("id"), equalTo("TestRegNode"));
-        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
-        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
-        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
-
+        assertCswProperties(passedValues);
     }
 
     @Test
@@ -568,7 +538,8 @@ public class SourceConfigurationHandlerTest {
 
         sch.setPreserveActiveConfigurations(false);
         sch.setActivateConfigurations(true);
-        sch.processUpdate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(updateEvent);
 
         verify(config, times(1)).delete();
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source", null);
@@ -587,7 +558,8 @@ public class SourceConfigurationHandlerTest {
         props.put("id", "TestRegNode");
         when(config.getProperties()).thenReturn(props);
 
-        sch.processUpdate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(updateEvent);
 
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source_disabled",
                 null);
@@ -609,14 +581,16 @@ public class SourceConfigurationHandlerTest {
     public void testDeleteConfiguration() throws Exception {
         when(configAdmin.listConfigurations(anyString())).thenReturn(new Configuration[] {config});
         sch.setCleanUpOnDelete(true);
-        sch.processDelete(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(deleteEvent);
         verify(config).delete();
     }
 
     @Test
     public void testDeleteConfigurationNoCleanup() throws Exception {
         when(configAdmin.listConfigurations(anyString())).thenReturn(new Configuration[] {config});
-        sch.processDelete(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(deleteEvent);
         verify(config, never()).delete();
     }
 
@@ -690,7 +664,8 @@ public class SourceConfigurationHandlerTest {
 
         when(ocd.getAttributeDefinitions(-1)).thenReturn(attributeDefinitions.toArray(new AttributeDefinition[attributeDefinitions.size()]));
         mcard.setAttribute(RegistryObjectMetacardType.REGISTRY_IDENTITY_NODE, null);
-        sch.processCreate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(createEvent);
         verify(configAdmin, times(1)).createFactoryConfiguration("Csw_Federated_Source_disabled",
                 null);
     }
@@ -698,25 +673,25 @@ public class SourceConfigurationHandlerTest {
     @Test
     public void testActivationSetter() throws Exception {
         sch.setActivateConfigurations(false);
-        verify(service, never()).getRegistryMetacards();
+        verify(adminService, never()).getRegistryMetacards();
         sch.setActivateConfigurations(true);
-        verify(service, never()).getRegistryMetacards();
+        verify(adminService, never()).getRegistryMetacards();
         sch.setActivateConfigurations(false);
         sch.setPreserveActiveConfigurations(false);
         sch.setActivateConfigurations(true);
-        verify(service, times(1)).getRegistryMetacards();
+        verify(adminService, times(1)).getRegistryMetacards();
     }
 
     @Test
     public void testPreserveActivationSetter() throws Exception {
         sch.setPreserveActiveConfigurations(true);
-        verify(service, never()).getRegistryMetacards();
+        verify(adminService, never()).getRegistryMetacards();
         sch.setPreserveActiveConfigurations(false);
-        verify(service, never()).getRegistryMetacards();
+        verify(adminService, never()).getRegistryMetacards();
         sch.setPreserveActiveConfigurations(true);
         sch.setActivateConfigurations(true);
         sch.setPreserveActiveConfigurations(false);
-        verify(service, times(1)).getRegistryMetacards();
+        verify(adminService, times(1)).getRegistryMetacards();
     }
 
     @Test
@@ -724,20 +699,46 @@ public class SourceConfigurationHandlerTest {
         List<String> order1 = Arrays.asList(new String[] {"one", "two"});
         List<String> order2 = Arrays.asList(new String[] {"two", "one"});
         sch.setSourceActivationPriorityOrder(order1);
-        verify(service, never()).getRegistryMetacards();
+        verify(adminService, never()).getRegistryMetacards();
         sch.setActivateConfigurations(true);
         sch.setPreserveActiveConfigurations(false);
         sch.setSourceActivationPriorityOrder(order1);
-        verify(service, times(1)).getRegistryMetacards();
+        verify(adminService, times(1)).getRegistryMetacards();
         sch.setSourceActivationPriorityOrder(order2);
-        verify(service, times(2)).getRegistryMetacards();
+        verify(adminService, times(2)).getRegistryMetacards();
     }
 
     @Test
     public void testEmptyMetadata() throws Exception {
         mcard.setMetadata("");
-        sch.processCreate(mcard);
+        setupSerialExecutor();
+        sch.handleEvent(createEvent);
         verify(configAdmin, never()).listConfigurations(anyString());
+    }
+
+    @Test
+    public void testDestroy() throws Exception {
+        when(executorService.awaitTermination(anyLong(), any(TimeUnit.class))).thenReturn(true);
+        sch.destroy();
+        verify(executorService, times(1)).awaitTermination(anyLong(), any(TimeUnit.class));
+        verify(executorService, times(0)).shutdownNow();
+    }
+
+    @Test
+    public void testDestroyTerminateTasks() throws Exception {
+        when(executorService.awaitTermination(anyLong(), any(TimeUnit.class))).thenReturn(false);
+        sch.destroy();
+        verify(executorService, times(2)).awaitTermination(anyLong(), any(TimeUnit.class));
+        verify(executorService, times(1)).shutdownNow();
+    }
+
+    @Test
+    public void testDestroyInterupt() throws Exception {
+        when(executorService.awaitTermination(anyLong(),
+                any(TimeUnit.class))).thenThrow(new InterruptedException("interrupt"));
+        sch.destroy();
+        verify(executorService, times(1)).awaitTermination(anyLong(), any(TimeUnit.class));
+        verify(executorService, times(1)).shutdownNow();
     }
 
     private String getMetadata(String path) throws Exception {
@@ -819,5 +820,23 @@ public class SourceConfigurationHandlerTest {
         public String validate(String arg0) {
             return null;
         }
+    }
+
+    private void setupSerialExecutor() {
+        doAnswer((args) -> {
+            ((Runnable) args.getArguments()[0]).run();
+            return null;
+        }).when(executorService)
+                .execute(any());
+    }
+
+    private void assertCswProperties(Dictionary passedValues) {
+        assertThat(passedValues.get(RegistryObjectMetacardType.REGISTRY_ID),
+                equalTo("urn:uuid:2014ca7f59ac46f495e32b4a67a51276"));
+        assertThat(passedValues.get("urlBindingName"), equalTo("cswUrl"));
+        assertThat(passedValues.get("id"), equalTo("TestRegNode"));
+        assertThat(passedValues.get("cswUrl"), equalTo("https://localhost:1234/mycsw/endpoint"));
+        assertThat(passedValues.get("bindingType"), equalTo("CSW_2.0.2"));
+        assertThat(passedValues.get("customSlot"), equalTo("customValue"));
     }
 }

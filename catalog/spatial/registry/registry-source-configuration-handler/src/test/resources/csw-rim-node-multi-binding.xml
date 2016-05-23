@@ -95,6 +95,36 @@
                 </rim:Description>
                 <rim:VersionInfo versionName="2.0.2"/>
             </rim:ServiceBinding>
+            <rim:ServiceBinding id="urn:registry:custom:method:csw"
+                                service="urn:uuid:service:2014ca7f59ac46f495e32b4a67a51276">
+                <rim:Slot name="urlBindingName" slotType="xs:string">
+                    <rim:ValueList>
+                        <rim:Value>cswUrl2</rim:Value>
+                    </rim:ValueList>
+                </rim:Slot>
+                <rim:Slot name="bindingType" slotType="xs:string">
+                    <rim:ValueList>
+                        <rim:Value>CustomType</rim:Value>
+                    </rim:ValueList>
+                </rim:Slot>
+                <rim:Slot name="customSlot" slotType="xs:string">
+                    <rim:ValueList>
+                    </rim:ValueList>
+                </rim:Slot>
+                <rim:Slot name="customSlot2" slotType="xs:string">
+                    <rim:ValueList>
+                        <rim:Value>customValue1</rim:Value>
+                        <rim:Value>customValue2</rim:Value>
+                    </rim:ValueList>
+                </rim:Slot>
+                <rim:Name>
+                    <rim:LocalizedString value="Custom Binding"/>
+                </rim:Name>
+                <rim:Description>
+                    <rim:LocalizedString value="Custom non-federation binding"/>
+                </rim:Description>
+                <rim:VersionInfo versionName="0.1"/>
+            </rim:ServiceBinding>
         </rim:Service>
     </rim:RegistryObjectList>
 </rim:RegistryPackage>

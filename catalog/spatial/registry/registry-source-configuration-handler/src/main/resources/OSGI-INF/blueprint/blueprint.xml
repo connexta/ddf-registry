@@ -21,8 +21,13 @@
     <reference id="metaTypeService" interface="org.osgi.service.metatype.MetaTypeService" />
     <reference id="xmlParser" interface="org.codice.ddf.parser.Parser" filter="(id=xml)" availability="mandatory"/>
 
-    <bean id="sourceConfigurationHandler" class="org.codice.ddf.registry.source.configuration.SourceConfigurationHandler" init-method="init">
+    <bean id="executor" class="java.util.concurrent.Executors" factory-method="newFixedThreadPool">
+        <argument value="1"/>
+    </bean>
+
+    <bean id="sourceConfigurationHandler" class="org.codice.ddf.registry.source.configuration.SourceConfigurationHandler" destroy-method="destroy">
         <argument ref="federationAdminService"/>
+        <argument ref="executor"/>
         <property name="configurationAdmin" ref="configurationAdmin"/>
         <property name="metaTypeService" ref="metaTypeService"/>
         <property name="parser" ref="xmlParser"/>

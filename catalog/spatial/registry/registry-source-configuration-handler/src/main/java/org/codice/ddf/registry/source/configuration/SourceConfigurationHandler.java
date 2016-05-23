@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import javax.xml.bind.JAXBElement;
 
@@ -78,7 +78,10 @@ public class SourceConfigurationHandler implements EventHandler {
 
     private static final String SHORTNAME = "shortname";
 
-    private static final String DELETE_CONFIGURATION = "deleteConfiguration";
+    private static final String CONFIGURATION_FILTER =
+            "(&(%s=%s)(|(service.factoryPid=*source*)(service.factoryPid=*Source*)(service.factoryPid=*service*)(service.factoryPid=*Service*)))";
+
+    private static final int SHUTDOWN_TIMEOUT_SECONDS = 60;
 
     private ConfigurationAdmin configurationAdmin;
 
@@ -92,8 +95,6 @@ public class SourceConfigurationHandler implements EventHandler {
 
     private ExecutorService executor;
 
-    private int threadPoolSize = 1;
-
     private String urlBindingName;
 
     private Map<String, String> bindingTypeToFactoryPidMap = new HashMap<>();
@@ -106,42 +107,47 @@ public class SourceConfigurationHandler implements EventHandler {
 
     private Boolean cleanUpOnDelete;
 
-    public SourceConfigurationHandler(FederationAdminService federationAdminService) {
+    public SourceConfigurationHandler(FederationAdminService federationAdminService,
+            ExecutorService executor) {
         this.federationAdminService = federationAdminService;
-    }
-
-    public void init() {
-        if (executor == null) {
-            executor = Executors.newFixedThreadPool(threadPoolSize);
-        }
+        this.executor = executor;
     }
 
     public void destroy() {
         executor.shutdown();
+        try {
+            if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+                if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                    LOGGER.error("Thread pool didn't terminate");
+                }
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+        }
     }
 
     @Override
     public void handleEvent(Event event) {
-        LOGGER.debug("Received event");
         Metacard mcard = (Metacard) event.getProperty(METACARD_PROPERTY);
-        if (mcard == null) {
+        if (mcard == null || !mcard.getTags()
+                .contains(RegistryConstants.REGISTRY_TAG)) {
             return;
         }
-        if (mcard.getTags()
-                .contains(RegistryConstants.REGISTRY_TAG)) {
-            executor.execute(() -> {
-                if (event.getTopic()
-                        .equals("ddf/catalog/event/CREATED")) {
-                    processCreate(mcard);
-                } else if (event.getTopic()
-                        .equals("ddf/catalog/event/UPDATED")) {
-                    processUpdate(mcard);
-                } else if (event.getTopic()
-                        .equals("ddf/catalog/event/DELETED")) {
-                    processDelete(mcard);
-                }
-            });
-        }
+
+        executor.execute(() -> {
+            if (event.getTopic()
+                    .equals("ddf/catalog/event/CREATED")) {
+                processCreate(mcard);
+            } else if (event.getTopic()
+                    .equals("ddf/catalog/event/UPDATED")) {
+                processUpdate(mcard);
+            } else if (event.getTopic()
+                    .equals("ddf/catalog/event/DELETED")) {
+                processDelete(mcard);
+            }
+        });
+
     }
 
     protected void processCreate(Metacard metacard) {
@@ -170,117 +176,76 @@ public class SourceConfigurationHandler implements EventHandler {
         }
     }
 
+    /**
+     * Finds all source configurations associated with the registry metacard creates/updates them
+     * with the information in the metacards service bindings. This method will enable/disable
+     * configurations if the right conditions are met but will never delete a configuration other
+     * than for switching a configuration from enabled to disabled or vic-versa
+     * @param metacard Registry metacard with new service binding info
+     * @param createEvent Flag indicating if this was a metacard create or update event
+     * @throws IOException
+     * @throws InvalidSyntaxException
+     * @throws ParserException
+     */
     private void updateRegistryConfigurations(Metacard metacard, boolean createEvent)
             throws IOException, InvalidSyntaxException, ParserException {
-        String metadata = metacard.getMetadata();
-        InputStream inputStream = new ByteArrayInputStream(metadata.getBytes(Charsets.UTF_8));
-        boolean identityNode = false;
 
-        Attribute identityNodeAttribute =
-                metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_IDENTITY_NODE);
-        if (identityNodeAttribute != null) {
-            identityNode = true;
-        }
+        boolean identityNode =
+                metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_IDENTITY_NODE) != null;
 
         boolean autoActivateConfigurations = activateConfigurations && !identityNode && (createEvent
                 || !preserveActiveConfigurations);
 
-        JAXBElement<RegistryObjectType> registryObjectTypeJAXBElement = parser.unmarshal(
-                unmarshalConfigurator,
-                JAXBElement.class,
-                inputStream);
+        List<ServiceBindingType> bindingTypes = getServiceBindings(metacard);
 
-        if (registryObjectTypeJAXBElement == null) {
-            LOGGER.error("Error trying to unmarshal metadata for metacard id: {}. Metadata: {}",
-                    metacard.getId(),
-                    metadata);
-            return;
-        }
+        String registryId = metacard.getAttribute(RegistryObjectMetacardType.REGISTRY_ID)
+                .getValue()
+                .toString();
 
-        RegistryPackageType registryPackage =
-                (RegistryPackageType) registryObjectTypeJAXBElement.getValue();
+        String configId = getDeconflictedConfigId(metacard.getTitle(), registryId);
 
-        String configId = metacard.getTitle();
-        if (StringUtils.isEmpty(configId)) {
-            configId = registryPackage.getId();
-        }
+        Map<String, Configuration> fpidToConfigurationMap = getCurrentConfigurations(registryId);
 
-        Configuration[] configurations = configurationAdmin.listConfigurations(String.format(
-                "(id=%s)",
-                configId));
-
-        // check for duplicate name situation
-        if (configurations != null && configurations.length > 0) {
-            String registryId = (String) configurations[0].getProperties()
-                    .get(RegistryObjectMetacardType.REGISTRY_ID);
-            if (registryId == null || !registryId.equals(registryPackage.getId())) {
-                configId = String.format("%s - %s", configId, registryPackage.getId());
-            }
-        }
-
-        configurations = configurationAdmin.listConfigurations(String.format("(%s=%s)",
-                RegistryObjectMetacardType.REGISTRY_ID,
-                registryPackage.getId()));
-
-        List<ServiceBindingType> bindingTypes =
-                RegistryPackageUtils.getBindingTypes(registryPackage);
         String bindingTypeToActivate = getBindingTypeToActivate(bindingTypes);
-        String deletedActiveConfigurationFPid = null;
-        String deletedDisabledConfigurationFPid = null;
-        Hashtable<String, Object> deletedActiveConfigurationProperties = new Hashtable<>();
-        Hashtable<String, Object> deletedDisabledConfigurationProperties = new Hashtable<>();
+        String fPidToActivate = bindingTypeToFactoryPidMap.get(bindingTypeToActivate);
 
-        Map<String, Configuration> configMap = new HashMap<>();
-        if (configurations != null && configurations.length > 0) {
-            boolean activeHandled = false;
-            for (Configuration configuration : configurations) {
-                configMap.put(configuration.getFactoryPid(), configuration);
-
-                if (autoActivateConfigurations && !activeHandled) {
-                    String fPidToActivate = bindingTypeToFactoryPidMap.get(bindingTypeToActivate);
-
-                    if (configuration.getFactoryPid()
-                            .equals(fPidToActivate)) {
-                        activeHandled = true;
-                    } else if (!configuration.getFactoryPid()
-                            .contains(DISABLED_CONFIGURATION_SUFFIX)) {
-                        deletedActiveConfigurationFPid = configuration.getFactoryPid();
-                        deletedActiveConfigurationProperties.putAll(getConfigurationsFromDictionary(
-                                configuration.getProperties()));
-
-                        configMap.remove(configuration.getFactoryPid());
-
-                        configuration.delete();
-                    } else if (configuration.getFactoryPid()
-                            .equals(fPidToActivate.concat(DISABLED_CONFIGURATION_SUFFIX))) {
-                        deletedDisabledConfigurationFPid = configuration.getFactoryPid();
-                        deletedDisabledConfigurationProperties.putAll(
-                                getConfigurationsFromDictionary(configuration.getProperties()));
-                        configMap.remove(configuration.getFactoryPid());
-
-                        configuration.delete();
-                    }
+        if (autoActivateConfigurations) {
+            String fpid;
+            Configuration configToEnable = null;
+            Configuration configToDisable = null;
+            for (Map.Entry<String, Configuration> entry : fpidToConfigurationMap.entrySet()) {
+                fpid = entry.getKey();
+                if (!fpid.contains(DISABLED_CONFIGURATION_SUFFIX) && !fpid.equals(fPidToActivate)) {
+                    configToDisable = entry.getValue();
+                } else if (fpid.equals(fPidToActivate.concat(DISABLED_CONFIGURATION_SUFFIX))) {
+                    configToEnable = entry.getValue();
                 }
+            }
+            //Order of disable/enable important. Can't have two enabled configurations with the same
+            //id so if there is one to disable, disable it before enabling another one.
+            if (configToDisable != null) {
+                fpidToConfigurationMap.remove(configToDisable.getFactoryPid());
+                Configuration config = toggleConfiguration(configToDisable);
+                fpidToConfigurationMap.put(config.getFactoryPid(), config);
+            }
+            if (configToEnable != null) {
+                fpidToConfigurationMap.remove(configToEnable.getFactoryPid());
+                Configuration config = toggleConfiguration(configToEnable);
+                fpidToConfigurationMap.put(config.getFactoryPid(), config);
             }
         }
 
         for (ServiceBindingType bindingType : bindingTypes) {
-            Map<String, List<SlotType1>> slotMap =
-                    RegistryPackageUtils.getNameSlotMapDuplicateSlotNamesAllowed(bindingType.getSlot());
+            Map<String, Object> slotMap = this.getServiceBindingProperties(bindingType);
 
             Hashtable<String, Object> serviceConfigurationProperties = new Hashtable<>();
 
-            if (slotMap.get(BINDING_TYPE) == null
-                    || CollectionUtils.isEmpty(RegistryPackageUtils.getSlotStringValues(slotMap.get(
-                    BINDING_TYPE)
-                    .get(0)))) {
+            if (slotMap.get(BINDING_TYPE) == null) {
                 continue;
             }
 
-            String factoryPidMask = RegistryPackageUtils.getSlotStringValues(slotMap.get(
-                    BINDING_TYPE)
-                    .get(0))
-                    .get(0);
+            String factoryPidMask = slotMap.get(BINDING_TYPE)
+                    .toString();
             String factoryPid = bindingTypeToFactoryPidMap.get(factoryPidMask);
 
             if (StringUtils.isBlank(factoryPid)) {
@@ -288,71 +253,28 @@ public class SourceConfigurationHandler implements EventHandler {
             }
 
             String factoryPidDisabled = factoryPid.concat(DISABLED_CONFIGURATION_SUFFIX);
+            Configuration curConfig = fpidToConfigurationMap.get(factoryPid);
+            if (curConfig == null) {
+                curConfig = fpidToConfigurationMap.get(factoryPidDisabled);
+            }
 
-            if (configMap.containsKey(factoryPid)) {
-                Dictionary<String, Object> properties = configMap.get(factoryPid)
-                        .getProperties();
-                serviceConfigurationProperties.putAll(getConfigurationsFromDictionary(properties));
-
-            } else if (configMap.containsKey(factoryPidDisabled)) {
-                Dictionary<String, Object> properties = configMap.get(factoryPidDisabled)
-                        .getProperties();
-                serviceConfigurationProperties.putAll(getConfigurationsFromDictionary(properties));
+            if (curConfig == null) {
+                serviceConfigurationProperties.putAll(getMetatypeDefaults(factoryPid));
+                String pid = factoryPidDisabled;
+                if (autoActivateConfigurations && factoryPidMask.equals(bindingTypeToActivate)) {
+                    pid = factoryPid;
+                }
+                curConfig = configurationAdmin.createFactoryConfiguration(pid, null);
             } else {
-                if (autoActivateConfigurations) {
-                    if (factoryPid.equals(deletedActiveConfigurationFPid)) {
-                        serviceConfigurationProperties.putAll(deletedActiveConfigurationProperties);
-                    } else if (factoryPidDisabled.equals(deletedDisabledConfigurationFPid)) {
-                        serviceConfigurationProperties.putAll(deletedDisabledConfigurationProperties);
-                    } else {
-                        Map<String, Object> defaults = getMetatypeDefaults(factoryPid);
-                        serviceConfigurationProperties.putAll(defaults);
-                    }
-                } else {
-                    Map<String, Object> defaults = getMetatypeDefaults(factoryPid);
-                    serviceConfigurationProperties.putAll(defaults);
-                }
+                serviceConfigurationProperties.putAll(getConfigurationsFromDictionary(curConfig.getProperties()));
             }
 
-            String bindingName = null;
-            for (Map.Entry slotMapEntry : slotMap.entrySet()) {
-                SlotType1 mapSlot = (SlotType1) ((ArrayList) slotMapEntry.getValue()).get(0);
-                List<String> slotAttributes = RegistryPackageUtils.getSlotStringValues(mapSlot);
-                if (CollectionUtils.isEmpty(slotAttributes)) {
-                    continue;
-                }
-
-                String name = (String) slotMapEntry.getKey();
-                String value = slotAttributes.get(0);
-                serviceConfigurationProperties.put(name, value);
-                if (name.equals(urlBindingName)) {
-                    bindingName = value;
-                }
-
-            }
+            serviceConfigurationProperties.putAll(slotMap);
             serviceConfigurationProperties.put(ID, configId);
             serviceConfigurationProperties.put(SHORTNAME, configId);
-            serviceConfigurationProperties.put(RegistryObjectMetacardType.REGISTRY_ID,
-                    registryPackage.getId());
-            if (StringUtils.isNotBlank(bindingName) && bindingType.isSetAccessURI()) {
-                serviceConfigurationProperties.put(bindingName, bindingType.getAccessURI());
-            }
+            serviceConfigurationProperties.put(RegistryObjectMetacardType.REGISTRY_ID, registryId);
 
-            Configuration configuration = configMap.get(factoryPid);
-            if (configuration == null) {
-
-                configuration = configMap.get(factoryPidDisabled);
-                if (configuration == null) {
-
-                    String pid = factoryPidDisabled;
-                    if (autoActivateConfigurations
-                            && factoryPidMask.equals(bindingTypeToActivate)) {
-                        pid = factoryPid;
-                    }
-                    configuration = configurationAdmin.createFactoryConfiguration(pid, null);
-                }
-            }
-            configuration.update(serviceConfigurationProperties);
+            curConfig.update(serviceConfigurationProperties);
         }
 
     }
@@ -368,40 +290,162 @@ public class SourceConfigurationHandler implements EventHandler {
         }
 
         Configuration[] configurations = configurationAdmin.listConfigurations(String.format(
-                "(%s=%s)",
+                CONFIGURATION_FILTER,
                 RegistryObjectMetacardType.REGISTRY_ID,
                 registryId));
-        if (configurations != null && configurations.length > 0) {
+        if (configurations != null) {
             for (Configuration configuration : configurations) {
                 configuration.delete();
             }
         }
     }
 
-    private String getBindingTypeToActivate(List<ServiceBindingType> bindingTypes) {
-        if (CollectionUtils.isEmpty(sourceActivationPriorityOrder)) {
-            return null;
+    /**
+     * Toggles a configuration between enabled and disabled.
+     *
+     * @param config The configuration to enable/disable
+     * @return The new enabled/disabled configuration
+     * @throws IOException
+     */
+    private Configuration toggleConfiguration(Configuration config) throws IOException {
+        String newFpid;
+        if (config.getFactoryPid()
+                .contains(DISABLED_CONFIGURATION_SUFFIX)) {
+            newFpid = config.getFactoryPid()
+                    .replace(DISABLED_CONFIGURATION_SUFFIX, "");
+        } else {
+            newFpid = config.getFactoryPid()
+                    .concat(DISABLED_CONFIGURATION_SUFFIX);
+        }
+        Dictionary<String, Object> properties = config.getProperties();
+        config.delete();
+        Configuration newConfig = configurationAdmin.createFactoryConfiguration(newFpid, null);
+        newConfig.update(properties);
+        return newConfig;
+    }
+
+    /**
+     * Returns the service binding slots as a map of string properties with the slot name as the key
+     *
+     * @param binding ServiceBindingType to generate the map from
+     * @return A map of service binding slots
+     */
+    private Map<String, Object> getServiceBindingProperties(ServiceBindingType binding) {
+        Map<String, Object> properties = new HashMap<>();
+        for (SlotType1 slot : binding.getSlot()) {
+            List<String> slotValues = RegistryPackageUtils.getSlotStringValues(slot);
+            if (CollectionUtils.isEmpty(slotValues)) {
+                continue;
+            }
+            properties.put(slot.getName(), slotValues.size() == 1 ? slotValues.get(0) : slotValues);
+        }
+        if (binding.isSetAccessURI() && properties.get(urlBindingName) != null) {
+            properties.put(properties.get(urlBindingName)
+                    .toString(), binding.getAccessURI());
+        }
+        return properties;
+    }
+
+    /**
+     * Gets all the configurations that have a matching registry id
+     *
+     * @param registryId The registry id to match
+     * @return A map of configurations with factory pids as keys
+     * @throws IOException
+     * @throws InvalidSyntaxException
+     */
+    private Map<String, Configuration> getCurrentConfigurations(String registryId)
+            throws IOException, InvalidSyntaxException {
+        Map<String, Configuration> configurationMap = new HashMap<>();
+        Configuration[] configurations = configurationAdmin.listConfigurations(String.format(
+                CONFIGURATION_FILTER,
+                RegistryObjectMetacardType.REGISTRY_ID,
+                registryId));
+
+        if (configurations == null) {
+            return configurationMap;
         }
 
+        for (Configuration config : configurations) {
+            configurationMap.put(config.getFactoryPid(), config);
+        }
+
+        return configurationMap;
+    }
+
+    /**
+     * Unmarshal the metacards metadata and extracts the service bindings
+     *
+     * @param metacard Metacard to extract bindings from
+     * @return List of ServiceBindingType
+     * @throws ParserException
+     */
+    private List<ServiceBindingType> getServiceBindings(Metacard metacard) throws ParserException {
+        String metadata = metacard.getMetadata();
+        InputStream inputStream = new ByteArrayInputStream(metadata.getBytes(Charsets.UTF_8));
+        JAXBElement<RegistryObjectType> registryObjectTypeJAXBElement = parser.unmarshal(
+                unmarshalConfigurator,
+                JAXBElement.class,
+                inputStream);
+
+        RegistryPackageType registryPackage =
+                (RegistryPackageType) registryObjectTypeJAXBElement.getValue();
+
+        return RegistryPackageUtils.getBindingTypes(registryPackage);
+
+    }
+
+    /**
+     * Gets the deconflicted configuration id. Checks for current configurations with the same ID
+     * and if present makes sure they belong to this registry entry. If configuration not present or
+     * present with the same registryId then the id passed in will be returned. If configuration is
+     * present and does not have the same registry id then return a new id that is a combination of
+     * the id and registry id which is guaranteed to be unique.
+     *
+     * @param id         Initial configuration ID
+     * @param registryId Associated registry ID
+     * @return A unique valid configuration ID
+     * @throws IOException
+     * @throws InvalidSyntaxException
+     */
+    private String getDeconflictedConfigId(String id, String registryId)
+            throws IOException, InvalidSyntaxException {
+        String configId = id;
+        if (StringUtils.isEmpty(configId)) {
+            configId = registryId;
+        }
+
+        Configuration[] configurations = configurationAdmin.listConfigurations(String.format(
+                "(id=%s)",
+                configId));
+
+        if (configurations == null) {
+            return configId;
+        }
+
+        String configRegistryId = (String) configurations[0].getProperties()
+                .get(RegistryObjectMetacardType.REGISTRY_ID);
+
+        if (configRegistryId == null || !configRegistryId.equals(registryId)) {
+            configId = String.format("%s - %s", configId, registryId);
+        }
+        return configId;
+    }
+
+    private String getBindingTypeToActivate(List<ServiceBindingType> bindingTypes) {
         String bindingTypeToActivate = null;
         String topPriority = sourceActivationPriorityOrder.get(0);
         List<String> bindingTypesNames = new ArrayList<>();
 
         for (ServiceBindingType bindingType : bindingTypes) {
-            Map<String, List<SlotType1>> slotMap =
-                    RegistryPackageUtils.getNameSlotMapDuplicateSlotNamesAllowed(bindingType.getSlot());
+            Map<String, Object> slotMap = this.getServiceBindingProperties(bindingType);
 
-            if (slotMap.get(BINDING_TYPE) == null
-                    || CollectionUtils.isEmpty(RegistryPackageUtils.getSlotStringValues(slotMap.get(
-                    BINDING_TYPE)
-                    .get(0)))) {
+            if (slotMap.get(BINDING_TYPE) == null) {
                 continue;
             }
 
-            String factoryPidMask = RegistryPackageUtils.getSlotStringValues(slotMap.get(
-                    BINDING_TYPE)
-                    .get(0))
-                    .get(0);
+            String factoryPidMask = slotMap.get(BINDING_TYPE)
+                    .toString();
 
             if (StringUtils.isNotBlank(factoryPidMask)) {
                 if (factoryPidMask.equals(topPriority)) {
@@ -633,9 +677,4 @@ public class SourceConfigurationHandler implements EventHandler {
         this.unmarshalConfigurator = parser.configureParser(contextPath, classLoader);
         this.parser = parser;
     }
-
-    public void setExecutorService(ExecutorService service) {
-        executor = service;
-    }
-
 }

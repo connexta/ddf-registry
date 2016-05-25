@@ -23,12 +23,15 @@
         <property name="federationAdminService" ref="federationAdminService"/>
         <property name="parser" ref="xmlParser"/>
         <property name="registryTransformer" ref="inputTransformer"/>
+        <property name="registryActionProvider" ref="actionProvider"/>
     </bean>
     <bean id="adminHelper" class="org.codice.ddf.registry.federationadmin.impl.AdminHelper">
         <argument ref="configurationAdmin"/>
     </bean>
     <bean id="catalogStoreMap" class="ddf.catalog.util.impl.DescribableServiceMap"/>
 
+    <reference id="actionProvider" interface="ddf.action.ActionProvider"
+               filter="(id=catalog.data.metacard.registry.view)"/>
     <reference id="catalogFramework" interface="ddf.catalog.CatalogFramework"/>
     <reference id="configurationAdmin" interface="org.osgi.service.cm.ConfigurationAdmin"/>
     <reference id="federationAdminService"

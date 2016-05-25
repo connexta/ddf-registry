@@ -29,6 +29,13 @@
         <div class="modal-body">
             <form class="form-horizontal add-federated-source container-fluid">
                 <fieldset>
+                    <a href={{registryActionLink}} target="_blank">Registry Report Link</a>
+                </fieldset>
+            </form>
+        </div>
+        <div class="modal-body">
+            <form class="form-horizontal add-federated-source container-fluid">
+                <fieldset>
                     <div class="sourceName"></div>
                     <div class="bound-controls">
                         <div class="control-group">
@@ -42,8 +49,8 @@
             </form>
         </div>
         <label class="control-label2  container-fluid">Binding Configurations:</label>
-        <div class="modal-accordions container-fluid">
-        </div>
+        <div class="modal-accordions container-fluid"/>
+        <div>{{registryReportLink}}</div>
         {{#if isRegistry}}
         <div id="checkboxes" class="container-fluid">
             <label>Publish node to the following registries:</label>

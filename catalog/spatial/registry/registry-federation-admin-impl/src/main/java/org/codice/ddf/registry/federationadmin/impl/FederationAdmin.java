@@ -78,6 +78,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 
+import ddf.action.Action;
+import ddf.action.ActionProvider;
 import ddf.catalog.CatalogFramework;
 import ddf.catalog.data.Attribute;
 import ddf.catalog.data.Metacard;
@@ -138,6 +140,8 @@ public class FederationAdmin implements FederationAdminMBean {
 
     private static final String TRANSIENT_VALUES_KEY = "TransientValues";
 
+    private static final String REGISTRY_ACTIONS_KEY = "RegistryActions";
+
     private static final String AUTO_POPULATE_VALUES_KEY = "autoPopulateValues";
 
     private static final String SERVICE_BINDINGS_KEY = "ServiceBinding";
@@ -155,6 +159,8 @@ public class FederationAdmin implements FederationAdminMBean {
     private ObjectName objectName;
 
     private FederationAdminService federationAdminService;
+
+    private ActionProvider registryActionProvider;
 
     private InputTransformer registryTransformer;
 
@@ -452,10 +458,17 @@ public class FederationAdmin implements FederationAdminMBean {
                         RegistryPackageWebConverter.getRegistryObjectWebMap(registryPackage);
 
                 Metacard metacard = metacardByRegistryIdMap.get(registryPackage.getId());
+
+                List<Action> registryActions = registryActionProvider.getActions(metacard);
+                if (registryActions.size() > 0){
+                    registryWebMap.put(REGISTRY_ACTIONS_KEY, registryActions);
+                }
+
                 Map<String, Object> transientValues = getTransientValuesMap(metacard);
                 if (MapUtils.isNotEmpty(transientValues)) {
                     registryWebMap.put(TRANSIENT_VALUES_KEY, transientValues);
                 }
+
 
                 if (MapUtils.isNotEmpty(registryWebMap)) {
                     registryMetacardInfo.add(registryWebMap);
@@ -809,6 +822,10 @@ public class FederationAdmin implements FederationAdminMBean {
 
     public void setFederationAdminService(FederationAdminService federationAdminService) {
         this.federationAdminService = federationAdminService;
+    }
+
+    public void setRegistryActionProvider(ActionProvider registryActionProvider) {
+        this.registryActionProvider = registryActionProvider;
     }
 
     public void setParser(Parser parser) {

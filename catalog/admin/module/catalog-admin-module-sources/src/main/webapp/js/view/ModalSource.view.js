@@ -80,6 +80,7 @@ define([
             //Mark this data as a registry by populating isRegistry with its registry uuid
             data.isRegistry = this.model.get('registryId');
             if (data.isRegistry) {
+                data.registryActionLink = this.getRegistryActions(this.source.get('model').registryMetacards.get('value'));
                 //Gather registry information about the available registries
                 data.availableRegistries = this.getAvailableRegistries(this.source.get('model').registryService);
                 //availableRegistries contains all known registry services
@@ -95,6 +96,15 @@ define([
                 });
             }
             return data;
+        },
+        getRegistryActions: function (registryMetacards) {
+            var registryAction = '';
+            registryMetacards.forEach(function (reg) {
+                if (reg.RegistryActions) {
+                    registryAction = reg.RegistryActions[0].url.url;
+                }
+            });
+            return registryAction;
         },
         /**
          * Returns information about which registries are available to this model (note: alreadyPublishedTo field added to track

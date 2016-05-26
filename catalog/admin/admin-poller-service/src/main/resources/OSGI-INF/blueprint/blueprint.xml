@@ -18,10 +18,13 @@
 
     <reference id="configurationAdmin" interface="org.osgi.service.cm.ConfigurationAdmin"/>
 
+    <reference-list id="reportActionProviders" interface="ddf.action.ActionProvider" filter="(id=catalog.source.report.*)" availability="optional"/>
+
     <bean id="adminPoller"
           class="org.codice.ddf.catalog.admin.poller.AdminPollerServiceBean"
           init-method="init"
           destroy-method="destroy">
         <argument ref="configurationAdmin"/>
+        <property name="reportActionProviders" ref="reportActionProviders"/>
     </bean>
 </blueprint>

@@ -77,54 +77,8 @@ define([
                 data = this.model.toJSON();
             }
             data.mode = this.mode;
-            //Mark this data as a registry by populating isRegistry with its registry uuid
-            data.isRegistry = this.model.get('registryId');
-            if (data.isRegistry) {
-                //Gather registry information about the available registries
-                data.availableRegistries = this.getAvailableRegistries(this.source.get('model').registryService);
-                //availableRegistries contains all known registry services
-                var listAlreadyPublishedTo = this.getAlreadyPublished(this.source.get('model').registryMetacards.get('value'), data.isRegistry);
-                //listAlreadyPublishedTo contains names of registries we have already published to
-                data.availableRegistries.forEach(function (regObj) {
-                    listAlreadyPublishedTo.forEach(function (pubTo) {
-                        if (regObj.name === pubTo) {
-                            regObj.alreadyPublishedTo = true;
-                        }
-
-                    });
-                });
-            }
+            data.actionReports = this.getActionReports();
             return data;
-        },
-        /**
-         * Returns information about which registries are available to this model (note: alreadyPublishedTo field added to track
-         * if a source has been previously published to. This field is for next iteration and is not in a useable state)
-         *
-         */
-        getAlreadyPublished: function (registryMetacards, registryId) {
-            var alreadyPublishedTo = [];
-            registryMetacards.forEach(function (reg) {
-                if (reg.id === registryId && reg.TransientValues && reg.TransientValues["published-locations"] && !_.isEmpty(reg.TransientValues["published-locations"])) {
-                    reg.TransientValues["published-locations"].forEach(function (pubLoc) {
-                        alreadyPublishedTo.push(pubLoc);
-                    });
-                }
-            });
-            return alreadyPublishedTo;
-        },
-
-
-        getAvailableRegistries: function (registryServices) {
-            var availableRegistries = [];
-            registryServices.get("value").forEach(function (service) {
-                var regToAdd = {};
-                if (service.configurations.length !== 0) {
-                    regToAdd.name = service.configurations[0].properties.id;
-                    regToAdd.alreadyPublishedTo = false;
-                    availableRegistries.push(regToAdd);
-                }
-            });
-            return availableRegistries;
         },
         /**
          * Initialize  the binder with the ManagedServiceFactory model.
@@ -209,10 +163,20 @@ define([
             }
             return configs;
         },
+        getActionReports: function() {
+            var disabledConfigs = this.model.get('disabledConfigurations');
+            var currentConfig = this.model.get('currentConfiguration');
+            if (!_.isUndefined(currentConfig)) {
+                return currentConfig.get('report_actions');
+            }
+            if (!_.isUndefined(disabledConfigs)) {
+                if(disabledConfigs.models.length > 0){
+                    return disabledConfigs.models[0].get('report_actions');
+                }
+            }
+        },
         /**
          * Submit to the backend. This is called when 'Add' or 'Save' are clicked in the Modal.
-         * If the service.save call is successful and the current node is a registry, a backend call
-         * to publish to the selected registries is made
          */
         submitData: function () {
             wreqr.vent.trigger('beforesave');
@@ -241,18 +205,6 @@ define([
                     });
                 }
             });
-            // If view.model represents a registry, gather the registries to publishTo
-            // based on the checked checkboxes and call metacard model's publishTo()
-            if (view.model.get('registryId')) {
-                var idToPublishFrom = "";
-                var idsToPublishTo = [];
-                var $checkboxArray = $(':checkbox:checked');
-                _.each($checkboxArray, function (checkbox) {
-                    idsToPublishTo.push(checkbox.value);
-                });
-                idToPublishFrom = view.model.get('registryId');
-                view.source.model.registryMetacards.publishTo(idToPublishFrom, idsToPublishTo);
-            }
         },
         sourceNameChanged: function (evt) {
             var newName = this.$(evt.currentTarget).find('input').val().trim();
@@ -449,64 +401,9 @@ define([
                 return "N/A";
             }
         },
-        /**
-         * Given a registry metacard with organizational information, collects the organizational infomation
-         * and returns a model representing it.
-         */
-        getOrganizationModel: function (registryMetacard) {
-            var orgInfo = {};
-            if (registryMetacard.RegistryObjectList.Organization) {
-                if (registryMetacard.RegistryObjectList.Organization[0]) {
-                    if (registryMetacard.RegistryObjectList.Organization[0].Address) {
-                        var address = registryMetacard.RegistryObjectList.Organization[0].Address[0];
-                        orgInfo.address = this.getOrgModelHelper(address, "city", "") + " ";
-                        orgInfo.address += this.getOrgModelHelper(address, "stateOrProvince", "") + " ";
-                        orgInfo.address += this.getOrgModelHelper(address, "country", "") + " ";
-                        orgInfo.address += this.getOrgModelHelper(address, "postalCode", "");
-                    }
-                    if (registryMetacard.RegistryObjectList.Organization[0].Name) {
-                        orgInfo.name = this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0], "Name", "");
-                    }
-                    if (registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber) {
-                        var phoneNumber = registryMetacard.RegistryObjectList.Organization[0].TelephoneNumber[0];
-                        orgInfo.phoneNumber = this.getOrgModelHelper(phoneNumber, "countryCode", "?") + "-";
-                        orgInfo.phoneNumber += this.getOrgModelHelper(phoneNumber, "areaCode", "???") + "-";
-                        orgInfo.phoneNumber += this.getOrgModelHelper(phoneNumber, "number", "???????");
-                        if (phoneNumber.extension) {
-                            orgInfo.phoneNumber += " ext. ";
-                            orgInfo.phoneNumber += this.getOrgModelHelper(phoneNumber, "extension", "???????");
-                        }
-                        orgInfo.phoneNumber += " (" + this.getOrgModelHelper(phoneNumber, "phoneType", "Contact") + ")";
-                    }
-                    var emailAddress = registryMetacard.RegistryObjectList.Organization[0].EmailAddress;
-                    if (emailAddress) {
-                        orgInfo.emailAddress = this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].EmailAddress[0], "address", "N/A");
-                        orgInfo.emailAddress += " (" + this.getOrgModelHelper(registryMetacard.RegistryObjectList.Organization[0].EmailAddress[0], "type", "Contact") + ")";
-                    }
-                }
-            }
-            return new Organization(orgInfo);
-        },
         renderDetails: function (configuration) {
             var service = configuration.get('service');
             if (!_.isUndefined(service)) {
-                // If this source being edited is a registry
-                if (this.model.get('editConfig').get('properties').get('registry-id')) {
-                    // Since this is a registry, if edit mode, populate the organizational info
-                    if (this.mode === 'edit') {
-                        var orgModel = new Organization();
-                        // find the metacard that corresponds to the current model and extract it's organizational info (if it has any)
-                        this.source.get('model').registryMetacards.get('value').forEach(function (regObj) {
-                            if (this.model.get('registryId') === regObj.id || this.model.get('editConfig').get('properties').get('registry-id') === regObj.id) {
-                                orgModel = this.getOrganizationModel(regObj);
-                            }
-                        }.bind(this));
-                        var orgViewInstance = new OrganizationView({
-                            model: orgModel
-                        });
-                        this.organizationInfo.show(orgViewInstance);
-                    }
-                }
                 // Make an accordionCollection to hold the accordions. Uses AccordionView as it's itemView
                 var accordionCollection = new AccordionCollection();
                 var configsWithServices = this.getAllConfigsWithServices();

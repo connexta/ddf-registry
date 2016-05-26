@@ -172,22 +172,14 @@ define([
                     collection: collection
                 }));
             },
-            refreshSources: function() {
+            refreshSources: function () {
                 var view = this;
                 view.model.get('model').clear();
                 view.model.get('model').fetch({
-                    success: function() {
-                        view.model.get('model').registryService.fetch({
-                            success: function() {
-                                view.model.get('model').registryMetacards.fetch({
-                                    success: function() {
-                                        view.model.get('collection').sort();
-                                        view.model.get('collection').trigger('reset');
-                                        view.refreshButton.done();
-                                    }
-                                });
-                            }
-                        });
+                    success: function () {
+                        view.model.get('collection').sort();
+                        view.model.get('collection').trigger('reset');
+                        view.refreshButton.done();
                     }
                 });
             },

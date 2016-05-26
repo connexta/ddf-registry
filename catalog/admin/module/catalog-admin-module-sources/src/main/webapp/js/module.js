@@ -29,15 +29,6 @@ define([
             var serviceModel = new Service.Response();
             serviceModel.fetch();
 
-            var registryMetacards = new Service.RegistryMetacards();
-            registryMetacards.fetch();
-
-            var registryService = new Service.RegistryService();
-            registryService.fetch();
-
-            serviceModel.registryMetacards = registryMetacards;
-            serviceModel.registryService = registryService;
-
             var sourceResponse = new Source.Response({
                 model: serviceModel
             });

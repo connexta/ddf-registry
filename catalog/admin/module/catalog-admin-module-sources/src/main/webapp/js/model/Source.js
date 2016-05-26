@@ -216,46 +216,16 @@ define([
                 if (!initialModel) {
                     initialModel = new Source.Model();
                 }
-                var registryId = this.getRegistryIdFromConfigurations(initialModel);
                 if (serviceCollection) {
                     serviceCollection.each(function(service) {
                         var config = new Service.Configuration({
                             service: service
                         });
                         config.set('fpid', config.get('fpid') + '_disabled');
-                        config.get('properties').set('registry-id', registryId);
                         initialModel.addDisabledConfiguration(config);
                     });
                 }
-                initialModel.set('registryId', registryId);
                 return initialModel;
-            },
-            /**
-             * Returns the registry-id that corresponds to the given model.
-             */
-            getRegistryIdFromConfigurations: function(model) {
-                var configuration = model.get('currentConfiguration');
-                // If no current configuration or the configuration does not have a registry-id, then the current
-                // Active Binding is disabled. Search through the disabled configurations to find the one that
-                // contains the models registry-id.
-                if (!configuration || !configuration.get('properties').get('registry-id')) {
-                    var disabledConfigWithRegistryId = model.get('disabledConfigurations').models.find(function(disabledConfig) {
-                        if (disabledConfig.get('properties').id) {
-                            if (disabledConfig.get('properties').get('registry-id')) {
-                                return true;
-                            }
-                        }
-                    });
-                    if (disabledConfigWithRegistryId) {
-                        return disabledConfigWithRegistryId.get('properties').get('registry-id');
-                    }
-                }
-                if (!configuration && !_.isEmpty(model.get('disableConfigurations'))) {
-                    configuration = model.get('disabledConfigurations')[0];
-                }
-                if (configuration) {
-                    return configuration.get('properties').get('registry-id');
-                }
             },
             isSourceConfiguration: function(configuration) {
                 return (configuration.get('fpid') && configuration.get('id') && configuration.get('fpid').indexOf('Source') !== -1);

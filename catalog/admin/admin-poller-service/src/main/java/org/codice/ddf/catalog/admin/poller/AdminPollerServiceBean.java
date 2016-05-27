@@ -43,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 //import ddf.action.Action;
+import ddf.action.Action;
 import ddf.action.ActionProvider;
 import ddf.catalog.service.ConfiguredService;
 import ddf.catalog.source.ConnectedSource;
@@ -78,6 +79,8 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
 
     private static final String MAP_ENTRY_REPORT_ACTIONS = "report_actions";
 
+    private static final String MAP_ENTRY_OPERATION_ACTIONS = "operation_actions";
+
     private static final String MAP_ENTRY_ACTION_ID = "id";
 
     private static final String MAP_ENTRY_ACTION_TITLE = "title";
@@ -93,6 +96,8 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
     private final AdminSourceHelper helper;
 
     private List<ActionProvider> reportActionProviders;
+
+    private List<ActionProvider> operationActionProviders;
 
     public AdminPollerServiceBean(ConfigurationAdmin configurationAdmin) {
         helper = getHelper();
@@ -209,7 +214,8 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
                             plist.put(key, properties.get(key));
                         }
                         source.put(MAP_ENTRY_PROPERTIES, plist);
-                        source.put(MAP_ENTRY_REPORT_ACTIONS, getReportActions(config));
+                        source.put(MAP_ENTRY_REPORT_ACTIONS, getActions(config, reportActionProviders));
+                        source.put(MAP_ENTRY_OPERATION_ACTIONS, getActions(config, operationActionProviders));
                         configurations.add(source);
                     }
                     metatype.put(MAP_ENTRY_CONFIGURATIONS, configurations);
@@ -228,35 +234,30 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
         return metatypes;
     }
 
-    private List<Map<String, String>> getReportActions(Configuration config) {
+    private List<Map<String, String>> getActions(Configuration config, List<ActionProvider> providers) {
         List<Map<String, String>> actions = new ArrayList<>();
-//        for (ActionProvider provider : reportActionProviders) {
-//            if (!provider.canHandle(config)) {
-//                continue;
-//            }
-//
-//            List<Action> curActionList = provider.getActions(config);
-//            for (Action action : curActionList) {
-//                Map<String, String> actionProperties = new HashMap<>();
-//                actionProperties.put(MAP_ENTRY_ACTION_ID, action.getId());
-//                actionProperties.put(MAP_ENTRY_ACTION_TITLE, action.getTitle());
-//                actionProperties.put(MAP_ENTRY_ACTION_DESCRIPTION, action.getDescription());
-//                actionProperties.put(MAP_ENTRY_ACTION_URL,
-//                        action.getUrl()
-//                                .toString());
-//                actions.add(actionProperties);
-//            }
-//
-//        }
-        //for testing only
-        Map<String, String> actionProperties = new HashMap<>();
-        actionProperties.put(MAP_ENTRY_ACTION_ID, "actionId");
-        actionProperties.put(MAP_ENTRY_ACTION_TITLE, "myActionTitle");
-        actionProperties.put(MAP_ENTRY_ACTION_DESCRIPTION, "myActionDescription");
-        actionProperties.put(MAP_ENTRY_ACTION_URL, "https://my/action/url");
-        actions.add(actionProperties);
+        for (ActionProvider provider : providers) {
+            if (!provider.canHandle(config)) {
+                continue;
+            }
+
+            List<Action> curActionList = provider.getActions(config);
+            for (Action action : curActionList) {
+                Map<String, String> actionProperties = new HashMap<>();
+                actionProperties.put(MAP_ENTRY_ACTION_ID, action.getId());
+                actionProperties.put(MAP_ENTRY_ACTION_TITLE, action.getTitle());
+                actionProperties.put(MAP_ENTRY_ACTION_DESCRIPTION, action.getDescription());
+                actionProperties.put(MAP_ENTRY_ACTION_URL,
+                        action.getUrl()
+                                .toString());
+                actions.add(actionProperties);
+            }
+
+        }
         return actions;
     }
+
+
 
     protected AdminSourceHelper getHelper() {
         return new AdminSourceHelper();
@@ -325,5 +326,9 @@ public class AdminPollerServiceBean implements AdminPollerServiceBeanMBean {
 
     public void setReportActionProviders(List<ActionProvider> reportActionProviders) {
         this.reportActionProviders = reportActionProviders;
+    }
+
+    public void setOperationActionProviders(List<ActionProvider> operationActionProviders) {
+        this.operationActionProviders = operationActionProviders;
     }
 }

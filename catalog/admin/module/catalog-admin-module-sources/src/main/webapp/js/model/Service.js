@@ -338,7 +338,10 @@ define(function(require) {
             key: 'value',
             relatedModel: Service.Model,
             includeInJSON: false
-        }]
+        }],
+        parse: function(data){
+            return data;
+        }
     });
     
     return Service;

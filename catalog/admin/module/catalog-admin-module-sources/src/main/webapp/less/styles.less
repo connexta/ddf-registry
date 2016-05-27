@@ -31,7 +31,9 @@ table.align-middle {
     }
   }
 }
-
+.control-label2 {
+  margin-top: 10px;
+}
 #sources-modal {
   a {
     text-decoration: none;
@@ -121,12 +123,15 @@ table.align-middle {
   }
 }
 
-.modal-accordions,.control-label2,.modal-reports,.modal-organization, #checkboxes {
-  margin: 0px 20px;
+.report-list,.operation-list{
+  list-style: none;
 }
 
-.report-list {
-  list-style: none;
+.modal-reports,.modal-operations {
+  label {
+    margin-left: 10px;
+    font-size: small;
+  }
 }
 
 .accordion-title {
@@ -147,6 +152,18 @@ table.align-middle {
 .accordion-title.active, .accordion-title:hover {
   background-color: #ddd;
 
+}
+
+.op-status {
+  display: none;
+  margin-left: 10px;
+}
+
+.op-success {
+  color: @activeColor;
+}
+.op-failed {
+  color: red;
 }
 
 .accordion-content {
@@ -181,4 +198,10 @@ table.align-middle {
 
 #checkboxes {
   margin-top: 10px;
+}
+
+.inactive-link {
+  pointer-events: none;
+  cursor: default;
+  color: lightgray;
 }

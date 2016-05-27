@@ -40,32 +40,43 @@
                     </div>
                 </fieldset>
             </form>
-        </div>
-        {{#if actionReports}}
-            <div class="modal-reports container-fluid">
-                <label>Source Reports:</label>
-                <ul class="report-list">
-                    {{#each actionReports}}
-                        <li>
-                            <a href="{{url}}">{{title}}</a>
-                        </li>
-                    {{/each}}
-                </ul>
+
+            <label class="control-label2 container-fluid">Binding Configurations:</label>
+            <div class="modal-accordions container-fluid">
             </div>
-        {{/if}}
-        <label class="control-label2  container-fluid">Binding Configurations:</label>
-        <div class="modal-accordions container-fluid">
+            <label class="control-label2  container-fluid">Reports:</label>
+            <div class="modal-reports container-fluid">
+                {{#if reportActions}}
+                    <ul class="report-list">
+                        {{#each reportActions}}
+                            <li>
+                                <a href="{{url}}">{{title}}</a>
+                            </li>
+                        {{/each}}
+                    </ul>
+
+                {{else}}
+                    <label>No reports available for this source</label>
+                {{/if}}
+            </div>
+            <label class="control-label2 container-fluid">Operations:</label>
+            <div class="modal-operations container-fluid">
+                {{#if operationActions}}
+                    <ul class="operation-list">
+                        {{#each operationActions}}
+                            <li class="action-item">
+                                <a id="{{id}}{{@index}}" href="#" class="operation-action" action-id="{{id}}" action="{{url}}">{{title}}</a>
+                                <i id="{{id}}{{@index}}-spinner" class="op-status fa fa-spinner fa-pulse fa-spin"></i>
+                                <i id="{{id}}{{@index}}-success" class="op-status op-success fa  fa-check-circle" aria-hidden="true"></i>
+                                <i id="{{id}}{{@index}}-failed" class="op-status op-failed fa fa-exclamation-circle" aria-hidden="true">Error performing operation</i>
+                            </li>
+                        {{/each}}
+                    </ul>
+                {{else}}
+                    <label>No operations available for this source</label>
+                {{/if}}
+            </div>
         </div>
-        <!--{{#if isRegistry}}-->
-        <!--<div id="checkboxes" class="container-fluid">-->
-            <!--<label>Publish node to the following registries:</label>-->
-            <!--<ul>-->
-                <!--{{#each availableRegistries}}-->
-                    <!--<li><input type="checkbox" value="{{this.name}}" {{#if this.alreadyPublishedTo}}checked{{/if}}> {{this.name}}</li>-->
-                <!--{{/each}}-->
-            <!--</ul>-->
-        <!--</div>-->
-        <!--{{/if}}-->
         <div class="modal-footer">
             <div class="btn-group">
                 {{#is mode 'edit'}}

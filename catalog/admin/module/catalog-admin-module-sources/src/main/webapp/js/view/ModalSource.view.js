@@ -62,6 +62,7 @@ define([
             "change .activeBindingSelect": "handleTypeChange",
             "click .submit-button": "submitData",
             "click .cancel-button": "cancel",
+            "click .operation-action": "handelAction",
             "change .sourceName": "sourceNameChanged"
         },
         regions: {
@@ -77,7 +78,8 @@ define([
                 data = this.model.toJSON();
             }
             data.mode = this.mode;
-            data.actionReports = this.getActionReports();
+            data.reportActions = this.getActions('report_actions');
+            data.operationActions = this.getActions('operation_actions');
             return data;
         },
         /**
@@ -163,17 +165,58 @@ define([
             }
             return configs;
         },
-        getActionReports: function() {
+        getActions: function(action) {
             var disabledConfigs = this.model.get('disabledConfigurations');
             var currentConfig = this.model.get('currentConfiguration');
+            var actions;
             if (!_.isUndefined(currentConfig)) {
-                return currentConfig.get('report_actions');
+                actions = currentConfig.get(action);
             }
             if (!_.isUndefined(disabledConfigs)) {
-                if(disabledConfigs.models.length > 0){
-                    return disabledConfigs.models[0].get('report_actions');
+                var actionConfig = _.find(disabledConfigs.models, function(config){
+                   return config.get(action); 
+                });
+                if(actionConfig){
+                    actions = actionConfig.get(action);
                 }
             }
+            _.each(actions, function(action){
+               action.id = action.id.split('.').join('-');
+            });
+            return actions;
+        },
+        handelAction: function (event) {
+            var link = this.$(event.currentTarget);
+            var action = link.attr('action');
+            var actionId = link.attr('action-id');
+            var id = link.attr('id');
+            var failed = $(this.$('#' + id + '-failed')[0]);
+            var success = $(this.$('#' + id + '-success')[0]);
+            var spinner = $(this.$('#' + id + '-spinner')[0]);
+            var httpMethod = this.getHttpMethod(actionId);
+            spinner.show();
+            failed.hide();
+            success.hide();
+            $.ajax({
+                url: action,
+                type: httpMethod
+            }).done(function () {
+                spinner.hide();
+                success.show();
+                if(actionId.indexOf('singleOp') > 0) {
+                    link.addClass('inactive-link');
+                }
+            }).fail(function () {
+                spinner.hide();
+                failed.show();
+            });
+        },
+        getHttpMethod: function(id){
+            var httpIndex = id.indexOf('HTTP_');
+            if( httpIndex > 0){
+                return id.substring(httpIndex+5);      
+            }
+            return "GET";
         },
         /**
          * Submit to the backend. This is called when 'Add' or 'Save' are clicked in the Modal.

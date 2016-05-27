@@ -20,11 +20,14 @@
 
     <reference-list id="reportActionProviders" interface="ddf.action.ActionProvider" filter="(id=catalog.source.report.*)" availability="optional"/>
 
+    <reference-list id="operationActionProviders" interface="ddf.action.ActionProvider" filter="(id=catalog.source.operation.*)" availability="optional"/>
+
     <bean id="adminPoller"
           class="org.codice.ddf.catalog.admin.poller.AdminPollerServiceBean"
           init-method="init"
           destroy-method="destroy">
         <argument ref="configurationAdmin"/>
         <property name="reportActionProviders" ref="reportActionProviders"/>
+        <property name="operationActionProviders" ref="operationActionProviders"/>
     </bean>
 </blueprint>

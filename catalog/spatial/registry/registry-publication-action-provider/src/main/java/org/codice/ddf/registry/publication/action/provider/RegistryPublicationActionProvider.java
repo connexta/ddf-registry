@@ -14,10 +14,12 @@
 package org.codice.ddf.registry.publication.action.provider;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -55,7 +57,7 @@ public class RegistryPublicationActionProvider implements ActionProvider, EventH
 
     private static final String REGISTRY_PATH = "/registries";
 
-    private static final String PUBLICATION_PATH = "publications";
+    private static final String PUBLICATION_PATH = "publication";
 
     private static final String PUBLISH_OPERATION = "publish";
 
@@ -186,15 +188,12 @@ public class RegistryPublicationActionProvider implements ActionProvider, EventH
                     REGISTRY_PATH,
                     regId,
                     PUBLICATION_PATH,
-                    destinationId);
+                    URLEncoder.encode(destinationId, "UTF-8"));
             URI uri = new URI(SystemBaseUrl.constructUrl(path, true));
             url = uri.toURL();
 
-        } catch (MalformedURLException e) {
-            LOGGER.info("Malformed URL exception", e);
-            return null;
-        } catch (URISyntaxException e) {
-            LOGGER.info("URI Syntax exception", e);
+        } catch (MalformedURLException | URISyntaxException | UnsupportedEncodingException e) {
+            LOGGER.error("Malformed URL exception", e);
             return null;
         }
         String id = String.format("%s.%s.%s.%s", getId(), operation, SINGLE_OP, httpOp);

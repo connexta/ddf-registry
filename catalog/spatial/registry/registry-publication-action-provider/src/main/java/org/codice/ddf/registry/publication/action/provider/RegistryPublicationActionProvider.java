@@ -63,8 +63,6 @@ public class RegistryPublicationActionProvider implements ActionProvider, EventH
 
     private static final String UNPUBLISH_OPERATION = "unpublish";
 
-    private static final String SINGLE_OP = "singleOp";
-
     private static final String HTTP_POST = "HTTP_POST";
 
     private static final String HTTP_DELETE = "HTTP_DELETE";
@@ -196,7 +194,7 @@ public class RegistryPublicationActionProvider implements ActionProvider, EventH
             LOGGER.error("Malformed URL exception", e);
             return null;
         }
-        String id = String.format("%s.%s.%s.%s", getId(), operation, SINGLE_OP, httpOp);
+        String id = String.format("%s.%s.%s", getId(), operation, httpOp);
         return new ActionImpl(id, title, description, url);
     }
 

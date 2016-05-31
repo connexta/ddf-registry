@@ -11,21 +11,16 @@
  * is distributed along with this program and can be found at
  * <http://www.gnu.org/licenses/lgpl.html>.
  */
-package org.codice.ddf.registry.report.viewer;
+package org.codice.ddf.registry.rest.endpoint.report;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 
-import javax.ws.rs.core.Response;
 import javax.xml.bind.JAXBElement;
 
 import org.codice.ddf.parser.Parser;
@@ -33,7 +28,6 @@ import org.codice.ddf.parser.ParserConfigurator;
 import org.codice.ddf.parser.ParserException;
 import org.codice.ddf.parser.xml.XmlParser;
 import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
-import org.codice.ddf.registry.federationadmin.service.FederationAdminService;
 import org.codice.ddf.registry.schemabindings.RegistryPackageUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,15 +35,12 @@ import org.junit.Test;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryObjectType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.RegistryPackageType;
 
-public class RegistryReportViewerTest {
-
+public class RegistryReportHelperTest {
     private Parser parser;
 
     private ParserConfigurator configurator;
 
-    private FederationAdminService federationAdminService = mock(FederationAdminService.class);
-
-    private RegistryReportViewer reportViewer;
+    private RegistryReportHelper reportHelper;
 
     @Before
     public void setup() {
@@ -66,34 +57,7 @@ public class RegistryReportViewerTest {
                 this.getClass()
                         .getClassLoader());
 
-        reportViewer = new RegistryReportViewer();
-        reportViewer.setFederationAdminService(federationAdminService);
-    }
-
-    @Test
-    public void testWithBlankMetacard() {
-        RegistryReportViewer reportViewer = new RegistryReportViewer();
-        Response response = reportViewer.viewRegInfoHtml(null, null);
-        assertThat(response.getStatusInfo()
-                .getStatusCode(), is(Response.Status.BAD_REQUEST.getStatusCode()));
-    }
-
-    @Test
-    public void testWithFederationAdminException() throws FederationAdminException {
-        when(federationAdminService.getRegistryObjectByMetacardId(anyString(),
-                anyList())).thenThrow(new FederationAdminException());
-        Response response = reportViewer.viewRegInfoHtml("metacardId", Arrays.asList("sourceIds"));
-        assertThat(response.getStatusInfo()
-                .getStatusCode(), is(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode()));
-    }
-
-    @Test
-    public void testRegistryPackageNotFound() throws FederationAdminException {
-        when(federationAdminService.getRegistryObjectByMetacardId(anyString(),
-                anyList())).thenReturn(null);
-        Response response = reportViewer.viewRegInfoHtml("metacardId", Arrays.asList("sourceIds"));
-        assertThat(response.getStatusInfo()
-                .getStatusCode(), is(Response.Status.NOT_FOUND.getStatusCode()));
+        reportHelper = new RegistryReportHelper();
     }
 
     @Test
@@ -101,52 +65,21 @@ public class RegistryReportViewerTest {
             throws ParserException, FederationAdminException {
         RegistryObjectType registryObject = getRegistryObjectFromResource(
                 "/csw-simplified-registry-package.xml");
-        if (registryObject instanceof RegistryPackageType) {
-            when(federationAdminService.getRegistryObjectByMetacardId(anyString(),
-                    anyList())).thenReturn((RegistryPackageType) registryObject);
-        }
-        assertThatRegistryMapHasExpectedValues(reportViewer.buildRegistryMap((RegistryPackageType) registryObject));
-
-        Response response = reportViewer.viewRegInfoHtml("metacardId", Arrays.asList("sourceIds"));
-        assertThat(response.getStatusInfo()
-                .getStatusCode(), is(Response.Status.OK.getStatusCode()));
-
+        assertThatRegistryMapHasExpectedValues(reportHelper.buildRegistryMap((RegistryPackageType) registryObject));
     }
 
     @Test
     public void testWithBareRegistryPackage() throws ParserException, FederationAdminException {
         RegistryObjectType registryObject = getRegistryObjectFromResource(
                 "/csw-bare-registry-package.xml");
-        if (registryObject instanceof RegistryPackageType) {
-            when(federationAdminService.getRegistryObjectByMetacardId(anyString(),
-                    anyList())).thenReturn((RegistryPackageType) registryObject);
-        }
-        RegistryReportViewer reportViewer = new RegistryReportViewer();
-        reportViewer.setFederationAdminService(federationAdminService);
-
-        assertThatRegistryMapisEmpty(reportViewer.buildRegistryMap((RegistryPackageType) registryObject));
-
-        Response response = reportViewer.viewRegInfoHtml("metacardId", Arrays.asList("sourceIds"));
-        assertThat(response.getStatusInfo()
-                .getStatusCode(), is(Response.Status.OK.getStatusCode()));
+        assertThatRegistryMapisEmpty(reportHelper.buildRegistryMap((RegistryPackageType) registryObject));
     }
 
     @Test
     public void testWithSparseRegistryPackage() throws ParserException, FederationAdminException {
         RegistryObjectType registryObject = getRegistryObjectFromResource(
                 "/csw-sparse-registry-package.xml");
-        if (registryObject instanceof RegistryPackageType) {
-            when(federationAdminService.getRegistryObjectByMetacardId(anyString(),
-                    anyList())).thenReturn((RegistryPackageType) registryObject);
-        }
-        RegistryReportViewer reportViewer = new RegistryReportViewer();
-        reportViewer.setFederationAdminService(federationAdminService);
-
-        assertThatRegistryMapDoesNotHaveCertainValues(reportViewer.buildRegistryMap((RegistryPackageType) registryObject));
-
-        Response response = reportViewer.viewRegInfoHtml("metacardId", Arrays.asList("sourceIds"));
-        assertThat(response.getStatusInfo()
-                .getStatusCode(), is(Response.Status.OK.getStatusCode()));
+        assertThatRegistryMapDoesNotHaveCertainValues(reportHelper.buildRegistryMap((RegistryPackageType) registryObject));
     }
 
     private void assertThatRegistryMapHasExpectedValues(Map<String, Object> registryMap) {
@@ -214,5 +147,4 @@ public class RegistryReportViewerTest {
 
         return registryObject;
     }
-
 }

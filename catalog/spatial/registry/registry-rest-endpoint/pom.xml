@@ -22,7 +22,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>registry-report-viewer</artifactId>
+    <artifactId>registry-rest-endpoint</artifactId>
     <name>DDF :: Registry :: Report Viewer</name>
     <packaging>bundle</packaging>
 

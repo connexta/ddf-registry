@@ -93,7 +93,7 @@
         </dependency>
         <dependency>
             <groupId>org.codice.ddf.registry</groupId>
-            <artifactId>registry-report-viewer</artifactId>
+            <artifactId>registry-rest-endpoint</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

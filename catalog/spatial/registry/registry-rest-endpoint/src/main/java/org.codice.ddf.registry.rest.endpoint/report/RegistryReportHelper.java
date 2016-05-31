@@ -11,36 +11,19 @@
  * is distributed along with this program and can be found at
  * <http://www.gnu.org/licenses/lgpl.html>.
  */
+package org.codice.ddf.registry.rest.endpoint.report;
 
-package org.codice.ddf.registry.report.viewer;
-
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import javax.xml.bind.JAXBElement;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.codice.ddf.registry.common.RegistryConstants;
-import org.codice.ddf.registry.federationadmin.service.FederationAdminException;
-import org.codice.ddf.registry.federationadmin.service.FederationAdminService;
 import org.codice.ddf.registry.schemabindings.RegistryPackageUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.github.jknack.handlebars.Handlebars;
-import com.github.jknack.handlebars.Template;
-import com.github.jknack.handlebars.io.ClassPathTemplateLoader;
 
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.EmailAddressType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.ExtrinsicObjectType;
@@ -56,76 +39,13 @@ import oasis.names.tc.ebxml_regrep.xsd.rim._3.ServiceType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.SlotType1;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.TelephoneNumberType;
 
-@Path("/")
-public class RegistryReportViewer {
-    private static final Logger LOGGER = LoggerFactory.getLogger(RegistryReportViewer.class);
+public class RegistryReportHelper {
 
     private String registryName = "";
 
     private static final String BINDING_TYPE = "bindingType";
 
-    private FederationAdminService federationAdminService;
-
-    private ClassPathTemplateLoader templateLoader;
-
-    public RegistryReportViewer() {
-        templateLoader = new ClassPathTemplateLoader();
-        templateLoader.setPrefix("/templates");
-        templateLoader.setSuffix(".hbt");
-    }
-
-    @Path("/{metacardId}/report")
-    @Produces(MediaType.TEXT_HTML)
-    @GET
-    public Response viewRegInfoHtml(@PathParam("metacardId") final String metacardId,
-            @QueryParam("sourceId") final List<String> sourceIds) {
-        Handlebars handlebars = new Handlebars(templateLoader);
-        String html = "";
-        if (StringUtils.isBlank(metacardId)) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("Metacard Id cannot be blank")
-                    .build();
-        }
-
-        RegistryPackageType registryPackage;
-        try {
-            registryPackage = federationAdminService.getRegistryObjectByMetacardId(metacardId,
-                    sourceIds);
-        } catch (FederationAdminException e) {
-            String message = "Error getting registry package.";
-            LOGGER.error("{} For metacard id: '{}', optional sources: {}",
-                    message,
-                    metacardId,
-                    sourceIds);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity(message)
-                    .build();
-        }
-
-        if (registryPackage == null) {
-            String message = "No registry package was found.";
-            LOGGER.error("{} For metacard id: '{}', optional source ids: {}.",
-                    message,
-                    metacardId,
-                    sourceIds);
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity(message)
-                    .build();
-        }
-
-        Map<String, Object> registryMap = buildRegistryMap(registryPackage);
-
-        try {
-            Template template = handlebars.compile("report");
-            html = template.apply(registryMap);
-        } catch (IOException e) {
-        }
-
-        return Response.ok(html)
-                .build();
-    }
-
-    protected Map<String, Object> buildRegistryMap(RegistryPackageType registryPackage) {
+    public Map<String, Object> buildRegistryMap(RegistryPackageType registryPackage) {
         Map<String, Object> registryMap = new HashMap<>();
 
         Map<String, Object> extrinsicInfo = getExtrinsicInfo(registryPackage);
@@ -393,7 +313,4 @@ public class RegistryReportViewer {
         map.put(key, list);
     }
 
-    public void setFederationAdminService(FederationAdminService federationAdminService) {
-        this.federationAdminService = federationAdminService;
-    }
 }

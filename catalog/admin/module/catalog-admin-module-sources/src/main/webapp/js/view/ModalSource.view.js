@@ -194,6 +194,7 @@ define([
             var success = $(this.$('#' + id + '-success')[0]);
             var spinner = $(this.$('#' + id + '-spinner')[0]);
             var httpMethod = this.getHttpMethod(actionId);
+            link.addClass('inactive-link');
             spinner.show();
             failed.hide();
             success.hide();
@@ -203,12 +204,11 @@ define([
             }).done(function () {
                 spinner.hide();
                 success.show();
-                if(actionId.indexOf('singleOp') > 0) {
-                    link.addClass('inactive-link');
-                }
+                link.removeClass('inactive-link');
             }).fail(function () {
                 spinner.hide();
                 failed.show();
+                link.removeClass('inactive-link');
             });
         },
         getHttpMethod: function(id){

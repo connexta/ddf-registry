@@ -60,6 +60,16 @@
             <groupId>org.codice.ddf.registry</groupId>
             <artifactId>registry-federation-admin-api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.3.2</version>
+        </dependency>
+        <dependency>
+            <groupId>ddf.lib</groupId>
+            <artifactId>common-system</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -71,6 +81,7 @@
                     <instructions>
                         <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
                         <Export-Package/>
+                        <Embed-Dependency>common-system,commons-lang3</Embed-Dependency>
                     </instructions>
                 </configuration>
             </plugin>

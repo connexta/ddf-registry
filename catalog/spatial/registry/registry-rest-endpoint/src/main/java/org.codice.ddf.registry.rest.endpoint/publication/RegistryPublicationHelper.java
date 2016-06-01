@@ -86,20 +86,13 @@ public class RegistryPublicationHelper {
 
         List<Serializable> locations = new ArrayList<>();
         Attribute locAttr = mcard.getAttribute(RegistryObjectMetacardType.PUBLISHED_LOCATIONS);
-        if (locAttr != null) {
-            locations = new HashSet<>(locAttr.getValues()).stream()
-                    .map(Object::toString)
-                    .collect(Collectors.toCollection(ArrayList::new));
-        }
-
-        if (!locations.contains(sourceId)) {
+        if (locAttr == null || !locAttr.getValues().contains(sourceId)) {
             return;
         }
 
         federationAdmin.deleteRegistryEntriesByRegistryIds(Collections.singletonList(registryId), Collections.singleton(sourceId));
 
-        locations.remove(sourceId);
-        locAttr.getValues().add(sourceId);
+        locAttr.getValues().remove(sourceId);
         mcard.setAttribute(locAttr);
 
         federationAdmin.updateRegistryEntry(mcard);

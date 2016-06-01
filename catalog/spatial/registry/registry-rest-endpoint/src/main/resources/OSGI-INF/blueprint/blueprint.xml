@@ -32,7 +32,7 @@
     <bean id="registryReportHelper" class="org.codice.ddf.registry.rest.endpoint.report.RegistryReportHelper"/>
 
     <bean id="registryRestEndpoint"
-          class="org.codice.ddf.registry.rest.endpoint.RegistryReportViewer">
+          class="org.codice.ddf.registry.rest.endpoint.RegistryRestEndpoint">
         <property name="federationAdminService" ref="federationAdminService"/>
         <property name="publicationHelper" ref="registryPublicationHelper"/>
         <property name="reportHelper" ref="registryReportHelper"/>

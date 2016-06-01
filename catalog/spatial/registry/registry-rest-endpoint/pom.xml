@@ -23,7 +23,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>registry-rest-endpoint</artifactId>
-    <name>DDF :: Registry :: Report Viewer</name>
+    <name>DDF :: Registry :: Rest Endpoint</name>
     <packaging>bundle</packaging>
 
     <dependencies>
@@ -64,6 +64,14 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>ddf.catalog.core</groupId>
+            <artifactId>catalog-core-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ddf.catalog.core</groupId>
+            <artifactId>catalog-core-api-impl</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
@@ -75,9 +83,13 @@
                     <instructions>
                         <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
                         <Embed-Dependency>
-                            handlebars, antlr4-runtime, commons-lang3
+                            handlebars, antlr4-runtime, commons-lang3, catalog-core-api-impl;scope=!test
                         </Embed-Dependency>
-                        <Import-Package>!org.abego.treelayout.*,*</Import-Package>
+                        <Import-Package>
+                            !org.codice.ddf.platform.util,
+                            !org.abego.treelayout.*,
+                            *
+                        </Import-Package>
                     </instructions>
                 </configuration>
             </plugin>

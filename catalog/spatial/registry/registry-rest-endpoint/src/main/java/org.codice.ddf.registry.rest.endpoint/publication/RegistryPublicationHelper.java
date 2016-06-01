@@ -13,6 +13,8 @@
  */
 package org.codice.ddf.registry.rest.endpoint.publication;
 
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -38,12 +40,12 @@ public class RegistryPublicationHelper {
     public void publish(String registryId, String sourceId) throws FederationAdminException {
         Metacard mcard = getMetacard(registryId);
         String mcardId = mcard.getId();
-        HashSet<String> locations = new HashSet<>();
+        List<Serializable> locations = new ArrayList<>();
         Attribute locAttr = mcard.getAttribute(RegistryObjectMetacardType.PUBLISHED_LOCATIONS);
         if (locAttr != null) {
             locations = new HashSet<>(locAttr.getValues()).stream()
                     .map(Object::toString)
-                    .collect(Collectors.toCollection(HashSet::new));
+                    .collect(Collectors.toCollection(ArrayList::new));
         }
 
         if (locations.contains(sourceId)) {
@@ -82,12 +84,12 @@ public class RegistryPublicationHelper {
     public void unpublish(String registryId, String sourceId) throws FederationAdminException {
         Metacard mcard = getMetacard(registryId);
 
-        HashSet<String> locations = new HashSet<>();
+        List<Serializable> locations = new ArrayList<>();
         Attribute locAttr = mcard.getAttribute(RegistryObjectMetacardType.PUBLISHED_LOCATIONS);
         if (locAttr != null) {
             locations = new HashSet<>(locAttr.getValues()).stream()
                     .map(Object::toString)
-                    .collect(Collectors.toCollection(HashSet::new));
+                    .collect(Collectors.toCollection(ArrayList::new));
         }
 
         if (!locations.contains(sourceId)) {

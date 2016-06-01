@@ -67,6 +67,8 @@ public class AdminPollerTest {
         results.add(new ResultImpl(metacard1));
 
         poller = new AdminPollerTest().new MockedAdminPoller(null);
+        poller.setOperationActionProviders(new ArrayList<>());
+        poller.setReportActionProviders(new ArrayList<>());
     }
 
     @Test

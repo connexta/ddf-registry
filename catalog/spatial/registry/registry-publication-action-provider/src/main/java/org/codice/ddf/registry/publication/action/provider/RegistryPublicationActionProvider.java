@@ -218,10 +218,10 @@ public class RegistryPublicationActionProvider implements ActionProvider, EventH
                         .map(p -> p.get(RegistryObjectMetacardType.REGISTRY_ID))
                         .filter(Objects::nonNull)
                         .findFirst()
-                        .get();
+                        .orElse(null);
 
             } catch (IOException | InvalidSyntaxException e) {
-
+                LOGGER.warn("Couldn't get configuration for {}", ((Source) subject).getId(), e);
             }
         } else if (subject instanceof Configuration) {
             return (String) ((Configuration) subject).getProperties()
@@ -246,4 +246,7 @@ public class RegistryPublicationActionProvider implements ActionProvider, EventH
         this.federationAdminService = adminService;
     }
 
+    public Map<String, List<String>> getPublications() {
+        return publications;
+    }
 }

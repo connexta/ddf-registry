@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.codice.ddf.configuration.SystemBaseUrl;
 import org.codice.ddf.registry.api.RegistryStore;
 import org.codice.ddf.registry.common.RegistryConstants;
@@ -96,7 +97,7 @@ public class RegistryPublicationActionProvider implements ActionProvider, EventH
 
         for (RegistryStore registry : registryStores) {
             //can't publish to yourself
-            if (!registry.isPushAllowed() || registryId.equals(registry.getRegistryId())) {
+            if (!registry.isPushAllowed() || StringUtils.isBlank(registry.getRegistryId()) || registryId.equals(registry.getRegistryId())) {
                 continue;
             }
 

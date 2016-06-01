@@ -461,15 +461,15 @@ public class FederationAdminServiceImpl implements FederationAdminService {
     }
 
     @Override
-    public RegistryPackageType getRegistryObjectByMetacardId(String metacardId)
+    public RegistryPackageType getRegistryObjectByRegistryId(String registryId)
             throws FederationAdminException {
-        return getRegistryObjectByMetacardId(metacardId, null);
+        return getRegistryObjectByRegistryId(registryId, null);
     }
 
     @Override
-    public RegistryPackageType getRegistryObjectByMetacardId(String metacardId,
+    public RegistryPackageType getRegistryObjectByRegistryId(String registryId,
             List<String> sourceIds) throws FederationAdminException {
-        if (StringUtils.isBlank(metacardId)) {
+        if (StringUtils.isBlank(registryId)) {
             throw new FederationAdminException(
                     "Error getting registry object by metacard id. Empty id provided.");
         }
@@ -479,27 +479,27 @@ public class FederationAdminServiceImpl implements FederationAdminService {
                 RegistryConstants.REGISTRY_NODE_METACARD_TYPE_NAME));
         filters.add(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.TAGS),
                 RegistryConstants.REGISTRY_TAG));
-        filters.add(FILTER_FACTORY.like(FILTER_FACTORY.property(Metacard.ID), metacardId));
+        filters.add(FILTER_FACTORY.like(FILTER_FACTORY.property(RegistryObjectMetacardType.REGISTRY_ID), registryId));
 
         Filter filter = FILTER_FACTORY.and(filters);
 
         List<Metacard> metacards = getRegistryMetacardsByFilter(filter, sourceIds);
 
         if (CollectionUtils.isEmpty(metacards)) {
-            String message = "Error getting registry object by metacard id. No result returned.";
-            LOGGER.debug("{} For metacard ID: {}, optional sources: {}",
+            String message = "Error getting registry object by registry id. No result returned.";
+            LOGGER.debug("{} For registry ID: {}, optional sources: {}",
                     message,
-                    metacardId,
+                    registryId,
                     sourceIds);
             return null;
         }
 
         if (metacards.size() > 1) {
             String message =
-                    "Error getting registry object by metacard id. More than one metacards were returned.";
-            LOGGER.error("{} For metacard ID: {}, optional sources: {}",
+                    "Error getting registry object by registry id. More than one metacards were returned.";
+            LOGGER.error("{} For registry ID: {}, optional sources: {}",
                     message,
-                    metacardId,
+                    registryId,
                     sourceIds);
             throw new FederationAdminException(message);
         }

@@ -222,7 +222,7 @@ public interface FederationAdminService {
      * @return List<RegistryPackageType>
      * @throws FederationAdminException If an exception is thrown trying to unmarshal the xml
      */
-    RegistryPackageType getRegistryObjectByMetacardId(String metacardId)
+    RegistryPackageType getRegistryObjectByRegistryId(String metacardId)
             throws FederationAdminException;
 
     /**
@@ -231,7 +231,7 @@ public interface FederationAdminService {
      * @return List<RegistryPackageType>
      * @throws FederationAdminException If an exception is thrown trying to unmarshal the xml
      */
-    RegistryPackageType getRegistryObjectByMetacardId(String metacardId, List<String> sourceIds)
+    RegistryPackageType getRegistryObjectByRegistryId(String metacardId, List<String> sourceIds)
             throws FederationAdminException;
 
     /**

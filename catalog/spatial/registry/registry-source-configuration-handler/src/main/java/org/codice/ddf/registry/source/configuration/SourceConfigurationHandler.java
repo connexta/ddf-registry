@@ -221,7 +221,7 @@ public class SourceConfigurationHandler implements EventHandler {
             bindingTypeToActivate = getBindingTypeToActivate(bindingTypes);
             if (StringUtils.isNotEmpty(bindingTypeToActivate)) {
                 String fPidToActivate = bindingTypeToFactoryPidMap.get(bindingTypeToActivate);
-                activateDeactivateExistingConfiguration(fPidToActivate, fpidToConfigurationMap);
+                activateDeactivateExistingConfiguration(fPidToActivate, fpidToConfigurationMap, bindingTypeToActivate);
             }
         }
 
@@ -239,6 +239,7 @@ public class SourceConfigurationHandler implements EventHandler {
             }
             Configuration curConfig = findOrCreateConfig(factoryPid,
                     fpidToConfigurationMap,
+                    factoryPidMask,
                     (autoActivateConfigurations && factoryPidMask.equals(bindingTypeToActivate)));
 
             Hashtable<String, Object> serviceConfigurationProperties = new Hashtable<>();
@@ -270,13 +271,14 @@ public class SourceConfigurationHandler implements EventHandler {
      * @throws IOException
      */
     private Configuration findOrCreateConfig(String factoryPid,
-            Map<String, Configuration> fpidToConfigurationMap, boolean createActiveConfig)
+            Map<String, Configuration> fpidToConfigurationMap, String bindingType, boolean createActiveConfig)
             throws IOException {
         String factoryPidDisabled = factoryPid.concat(DISABLED_CONFIGURATION_SUFFIX);
-
-        Configuration curConfig = fpidToConfigurationMap.get(factoryPid);
+        String factoryPidDisabledWithBinding = factoryPidDisabled + bindingType;
+        String factoryPidWithBinding = factoryPid + bindingType;
+        Configuration curConfig = fpidToConfigurationMap.get(factoryPidWithBinding);
         if (curConfig == null) {
-            curConfig = fpidToConfigurationMap.get(factoryPidDisabled);
+            curConfig = fpidToConfigurationMap.get(factoryPidDisabledWithBinding);
         }
         if (curConfig == null) {
             String pid = factoryPidDisabled;
@@ -297,15 +299,18 @@ public class SourceConfigurationHandler implements EventHandler {
      * @throws IOException
      */
     private void activateDeactivateExistingConfiguration(String fPidToActivate,
-            Map<String, Configuration> fpidToConfigurationMap) throws IOException {
+            Map<String, Configuration> fpidToConfigurationMap, String bindingType) throws IOException {
         String fpid;
+        String fpidToActivateWithBinding = fPidToActivate + bindingType;
+        String disabledFpidToActivateWithBinding =
+                fPidToActivate.concat(DISABLED_CONFIGURATION_SUFFIX) + bindingType;
         Configuration configToEnable = null;
         Configuration configToDisable = null;
         for (Map.Entry<String, Configuration> entry : fpidToConfigurationMap.entrySet()) {
             fpid = entry.getKey();
-            if (!fpid.contains(DISABLED_CONFIGURATION_SUFFIX) && !fpid.equals(fPidToActivate)) {
+            if (!fpid.contains(DISABLED_CONFIGURATION_SUFFIX) && !fpid.equals(fpidToActivateWithBinding)) {
                 configToDisable = entry.getValue();
-            } else if (fpid.equals(fPidToActivate.concat(DISABLED_CONFIGURATION_SUFFIX))) {
+            } else if (fpid.equals(disabledFpidToActivateWithBinding)) {
                 configToEnable = entry.getValue();
             }
             if (configToDisable != null && configToEnable != null) {
@@ -315,14 +320,22 @@ public class SourceConfigurationHandler implements EventHandler {
         //Order of disable/enable important. Can't have two enabled configurations with the same
         //id so if there is one to disable, disable it before enabling another one.
         if (configToDisable != null) {
-            fpidToConfigurationMap.remove(configToDisable.getFactoryPid());
+            fpidToConfigurationMap
+                    .remove(configToDisable.getFactoryPid() + configToDisable.getProperties()
+                            .get("bindingType"));
             Configuration config = toggleConfiguration(configToDisable);
-            fpidToConfigurationMap.put(config.getFactoryPid(), config);
+            fpidToConfigurationMap
+                    .put(config.getFactoryPid() + config.getProperties().get("bindingType"),
+                            config);
         }
         if (configToEnable != null) {
-            fpidToConfigurationMap.remove(configToEnable.getFactoryPid());
+            fpidToConfigurationMap
+                    .remove(configToEnable.getFactoryPid() + configToEnable.getProperties()
+                            .get("bindingType"));
             Configuration config = toggleConfiguration(configToEnable);
-            fpidToConfigurationMap.put(config.getFactoryPid(), config);
+            fpidToConfigurationMap
+                    .put(config.getFactoryPid() + config.getProperties().get("bindingType"),
+                            config);
         }
     }
 
@@ -428,7 +441,8 @@ public class SourceConfigurationHandler implements EventHandler {
                         .get("id")));
 
         for (Configuration config : configurations) {
-            configurationMap.put(config.getFactoryPid(), config);
+            configurationMap.put(config.getFactoryPid() + config.getProperties().get("bindingType"),
+                    config);
         }
 
         return configurationMap;

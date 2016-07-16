@@ -255,7 +255,23 @@ public class SourceConfigurationHandler implements EventHandler {
             serviceConfigurationProperties.put(RegistryObjectMetacardType.REGISTRY_ID, registryId);
 
             curConfig.update(serviceConfigurationProperties);
+            fpidToConfigurationMap.remove(curConfig.getFactoryPid() + factoryPidMask);
         }
+
+        //if a binding was removed the configuration could still exist, If the registry
+        //entry gets renamed the non-binding configs will not get renamed appropriately so we
+        //go through them here and make sure the name is set correctly.
+        fpidToConfigurationMap.values().stream().forEach(config -> {
+            try {
+                Dictionary<String, Object> properties = config.getProperties();
+                properties.put(ID, configId);
+                properties.put(SHORTNAME, configId);
+                config.update(properties);
+            } catch (IOException e) {
+                LOGGER.error("Could not remove configuration for {}:{}",
+                        config.getProperties().get(ID), config.getFactoryPid());
+            }
+        });
 
     }
 

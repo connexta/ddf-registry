@@ -88,11 +88,17 @@ define([
             },
             showReadOnlyNode: function(node) {
                 if(this.model) {
+                    // wreqr.vent.trigger("showModal",
+                    //     new NodeModal.View({
+                    //         model: node,
+                    //         mode: 'readOnly',
+                    //         readOnly: true
+                    //     })
+                    // );
                     wreqr.vent.trigger("showModal",
                         new NodeModal.View({
                             model: node,
-                            mode: 'readOnly',
-                            readOnly: true
+                            mode: 'edit'
                         })
                     );
                 }

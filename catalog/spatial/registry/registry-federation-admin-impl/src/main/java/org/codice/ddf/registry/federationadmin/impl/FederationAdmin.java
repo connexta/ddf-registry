@@ -218,7 +218,7 @@ public class FederationAdmin implements FederationAdminMBean {
         updateDateFields(registryPackage);
 
         List<Metacard> existingMetacards =
-                federationAdminService.getLocalRegistryMetacardsByRegistryIds(Collections.singletonList(
+                federationAdminService.getRegistryMetacardsByRegistryIds(Collections.singletonList(
                         registryPackage.getId()));
 
         if (CollectionUtils.isEmpty(existingMetacards)) {

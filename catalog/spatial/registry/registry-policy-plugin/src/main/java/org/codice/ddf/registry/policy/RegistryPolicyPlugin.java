@@ -47,13 +47,21 @@ public class RegistryPolicyPlugin implements PolicyPlugin {
 
     private List<String> registryBypassPolicyStrings;
 
-    private List<String> writeAccessPolicyStrings;
+    private List<String> createAccessPolicyStrings;
+
+    private List<String> updateAccessPolicyStrings;
+
+    private List<String> deleteAccessPolicyStrings;
 
     private List<String> readAccessPolicyStrings;
 
     private Map<String, Set<String>> bypassAccessPolicy = new HashMap<>();
 
-    private Map<String, Set<String>> writeAccessPolicy = new HashMap<>();
+    private Map<String, Set<String>> createAccessPolicy = new HashMap<>();
+
+    private Map<String, Set<String>> updateAccessPolicy = new HashMap<>();
+
+    private Map<String, Set<String>> deleteAccessPolicy = new HashMap<>();
 
     private Map<String, Set<String>> readAccessPolicy = new HashMap<>();
 
@@ -109,15 +117,32 @@ public class RegistryPolicyPlugin implements PolicyPlugin {
         return this.registryBypassPolicyStrings;
     }
 
-    public List<String> getWriteAccessPolicyStrings() {
-        return writeAccessPolicyStrings;
+    public List<String> getCreateAccessPolicyStrings() {
+        return createAccessPolicyStrings;
     }
 
-    public void setWriteAccessPolicyStrings(List<String> writeAccessPolicyStrings) {
-        this.writeAccessPolicyStrings = writeAccessPolicyStrings;
-        parsePermissionsFromString(writeAccessPolicyStrings, writeAccessPolicy);
+    public void setCreateAccessPolicyStrings(List<String> accessPolicyStrings) {
+        this.createAccessPolicyStrings = accessPolicyStrings;
+        parsePermissionsFromString(accessPolicyStrings, createAccessPolicy);
     }
 
+    public List<String> getUpdateAccessPolicyStrings() {
+        return updateAccessPolicyStrings;
+    }
+
+    public void setUpdateAccessPolicyStrings(List<String> accessPolicyStrings) {
+        this.updateAccessPolicyStrings = accessPolicyStrings;
+        parsePermissionsFromString(accessPolicyStrings, updateAccessPolicy);
+    }
+
+    public List<String> getDeleteAccessPolicyStrings() {
+        return deleteAccessPolicyStrings;
+    }
+
+    public void setDeleteAccessPolicyStrings(List<String> accessPolicyStrings) {
+        this.deleteAccessPolicyStrings = accessPolicyStrings;
+        parsePermissionsFromString(accessPolicyStrings, deleteAccessPolicy);
+    }
     public List<String> getReadAccessPolicyStrings() {
         return readAccessPolicyStrings;
     }
@@ -158,7 +183,7 @@ public class RegistryPolicyPlugin implements PolicyPlugin {
         }
     }
 
-    private PolicyResponse getWritePolicy(Metacard input, Map<String, Serializable> properties) {
+    private PolicyResponse getWritePolicy(Metacard input, Map<String, Serializable> properties, Map<String, Set<String>> policy) {
         HashMap<String, Set<String>> operationPolicy = new HashMap<>();
         if (input != null && Requests.isLocal(properties) && input.getTags()
                 .contains(RegistryConstants.REGISTRY_TAG)) {
@@ -167,7 +192,7 @@ public class RegistryPolicyPlugin implements PolicyPlugin {
                     && ((String) attribute.getValue()).startsWith(SystemBaseUrl.getBaseUrl()))) {
                 operationPolicy.putAll(bypassAccessPolicy);
             } else {
-                operationPolicy.putAll(writeAccessPolicy);
+                operationPolicy.putAll(policy);
             }
         }
         return new PolicyResponseImpl(operationPolicy, new HashMap<>());
@@ -176,13 +201,13 @@ public class RegistryPolicyPlugin implements PolicyPlugin {
     @Override
     public PolicyResponse processPreCreate(Metacard input, Map<String, Serializable> properties)
             throws StopProcessingException {
-        return getWritePolicy(input, properties);
+        return getWritePolicy(input, properties, createAccessPolicy);
     }
 
     @Override
     public PolicyResponse processPreUpdate(Metacard input, Map<String, Serializable> properties)
             throws StopProcessingException {
-        return getWritePolicy(input, properties);
+        return getWritePolicy(input, properties, updateAccessPolicy);
     }
 
     @Override
@@ -190,7 +215,7 @@ public class RegistryPolicyPlugin implements PolicyPlugin {
             Map<String, Serializable> properties) throws StopProcessingException {
         if (metacards != null) {
             for (Metacard metacard : metacards) {
-                PolicyResponse response = getWritePolicy(metacard, properties);
+                PolicyResponse response = getWritePolicy(metacard, properties, deleteAccessPolicy);
                 if (!response.operationPolicy()
                         .isEmpty()) {
                     return response;
@@ -245,8 +270,16 @@ public class RegistryPolicyPlugin implements PolicyPlugin {
         return Collections.unmodifiableMap(bypassAccessPolicy);
     }
 
-    public Map<String, Set<String>> getWriteAccessPolicy() {
-        return Collections.unmodifiableMap(writeAccessPolicy);
+    public Map<String, Set<String>> getCreateAccessPolicy() {
+        return Collections.unmodifiableMap(createAccessPolicy);
+    }
+
+    public Map<String, Set<String>> getUpdateAccessPolicy() {
+        return Collections.unmodifiableMap(updateAccessPolicy);
+    }
+
+    public Map<String, Set<String>> getDeleteAccessPolicy() {
+        return Collections.unmodifiableMap(deleteAccessPolicy);
     }
 
     public Map<String, Set<String>> getReadAccessPolicy() {

@@ -21,7 +21,17 @@
                 <value>http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role=system-admin</value>
             </array>
         </property>
-        <property name="writeAccessPolicyStrings">
+        <property name="createAccessPolicyStrings">
+            <array>
+                <value>http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role=guest</value>
+            </array>
+        </property>
+        <property name="updateAccessPolicyStrings">
+            <array>
+                <value>http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role=guest</value>
+            </array>
+        </property>
+        <property name="deleteAccessPolicyStrings">
             <array>
                 <value>http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role=guest</value>
             </array>

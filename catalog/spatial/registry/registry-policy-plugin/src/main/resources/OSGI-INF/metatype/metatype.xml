@@ -17,8 +17,16 @@
          name="Registry Policy Plugin"
          id="org.codice.ddf.registry.policy.RegistryPolicyPlugin">
 
-        <AD description="Roles/attributes required for CUD (create/update/delete) operations on registry entries. Example: {role=role1;type=type1}"
-            name="Registry CUD Attributes" id="writeAccessPolicyStrings" required="true" type="String" cardinality="100"
+        <AD description="Roles/attributes required for create operations. Example: {role=role1;type=type1}"
+            name="Registry Create Attributes" id="createAccessPolicyStrings" required="true" type="String" cardinality="100"
+            default="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role=guest"/>
+
+        <AD description="Roles/attributes required for update operations on registry entries. Example: {role=role1;type=type1}"
+            name="Registry Update Attributes" id="updateAccessPolicyStrings" required="true" type="String" cardinality="100"
+            default="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role=guest"/>
+
+        <AD description="Roles/attributes required for delete operations on registry entries. Example: {role=role1;type=type1}"
+            name="Registry Delete Attributes" id="deleteAccessPolicyStrings" required="true" type="String" cardinality="100"
             default="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role=guest"/>
 
         <AD description="Roles/attributes required for reading registry entries. Example: {role=role1;type=type1}"
